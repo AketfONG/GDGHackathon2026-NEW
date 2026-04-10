@@ -1,0 +1,181 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  STUDENT
+  ADMIN
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum EventType {
+  QUIZ_START
+  QUIZ_SUBMIT
+  IDLE_SPIKE
+  RAPID_GUESS
+  HINT_OVERUSE
+  SESSION_END
+}
+
+enum InterventionType {
+  RECAP_2MIN
+  CONFIDENCE_RESET
+  SWITCH_DIFFICULTY
+  SCHEDULE_REPLAN
+  MENTOR_PING
+}
+
+model User {
+  id                 String               @id @default(cuid())
+  name               String
+  email              String               @unique
+  role               UserRole             @default(STUDENT)
+  goal               String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  quizAttempts       QuizAttempt[]
+  checkIns           CheckIn[]
+  passiveEvents      PassiveSignalEvent[]
+  timetableBlocks    TimetableBlock[]
+  obligations        Obligation[]
+  assessments        DriftAssessment[]
+  interventions      InterventionAction[]
+  scheduleAdherences ScheduleAdherence[]
+}
+
+model Quiz {
+  id          String         @id @default(cuid())
+  title       String
+  topic       String
+  difficulty  String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  questions   QuizQuestion[]
+  attempts    QuizAttempt[]
+}
+
+model QuizQuestion {
+  id          String   @id @default(cuid())
+  quizId      String
+  prompt      String
+  options     Json
+  correctIdx  Int
+  explanation String?
+  createdAt   DateTime @default(now())
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+model QuizAttempt {
+  id               String            @id @default(cuid())
+  userId           String
+  quizId           String
+  score            Float
+  durationSec      Int
+  submittedAt      DateTime          @default(now())
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz             Quiz              @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionAttempts QuestionAttempt[]
+}
+
+model QuestionAttempt {
+  id            String      @id @default(cuid())
+  quizAttemptId String
+  questionId    String
+  selectedIdx   Int
+  isCorrect     Boolean
+  responseMs    Int
+  quizAttempt   QuizAttempt @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
+}
+
+model CheckIn {
+  id         String   @id @default(cuid())
+  userId     String
+  focusLevel Int
+  mood       Int
+  confidence Int
+  note       String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PassiveSignalEvent {
+  id        String    @id @default(cuid())
+  userId    String
+  type      EventType
+  meta      Json?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TimetableBlock {
+  id            String   @id @default(cuid())
+  userId         String
+  title          String
+  goalTag        String
+  dayOfWeek      Int
+  startMinutes   Int
+  endMinutes     Int
+  nonSkippable   Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Obligation {
+  id            String   @id @default(cuid())
+  userId         String
+  title          String
+  dayOfWeek      Int
+  startMinutes   Int
+  endMinutes     Int
+  nonSkippable   Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ScheduleAdherence {
+  id             String   @id @default(cuid())
+  userId          String
+  date            DateTime
+  plannedMinutes  Int
+  actualMinutes   Int
+  adherenceScore  Float
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DriftAssessment {
+  id         String    @id @default(cuid())
+  userId      String
+  riskScore   Int
+  riskLevel   RiskLevel
+  reasons     Json
+  assessedAt  DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model InterventionAction {
+  id            String            @id @default(cuid())
+  userId         String
+  type           InterventionType
+  triggerReasons Json
+  message        String
+  status         String
+  cooldownUntil  DateTime?
+  createdAt      DateTime          @default(now())
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
