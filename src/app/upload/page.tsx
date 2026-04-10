@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { TopNav } from "@/components/top-nav";
-import { FileUploadSection } from "@/components/file-upload-section";
-import { DocumentUploadForm } from "@/components/document-upload";
 import { useState } from "react";
 
 // Mock courses data
@@ -174,26 +172,9 @@ export default function UploadMaterialsPage() {
           </Link>
           <h1 className="text-3xl font-semibold text-slate-900">Upload Course Materials</h1>
           <p className="mt-2 text-slate-600">
-            Upload study materials or use AI to generate quizzes directly from course content.
+            Upload study materials by course and week.
           </p>
         </section>
-
-        {/* AI MCQ Generation Section */}
-        <div className="mb-8 rounded-lg border-4 border-blue-200 bg-blue-50 p-6">
-          <div className="mb-4">
-            <h2 className="inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
-              ✨ GENERATE QUIZZES DIRECTLY
-            </h2>
-          </div>
-          <DocumentUploadForm />
-        </div>
-
-        {/* Divider */}
-        <div className="mb-8 flex items-center gap-4">
-          <div className="flex-1 border-t border-slate-300"></div>
-          <p className="text-sm font-semibold text-slate-600">OR</p>
-          <div className="flex-1 border-t border-slate-300"></div>
-        </div>
 
         {/* Course Selection */}
         <div className="mb-8 rounded-lg border border-slate-200 bg-white p-6">
