@@ -43,7 +43,7 @@ export const uiOnlyQuizzes: UiQuiz[] = [
     difficulty: "EASY",
     questions: Array.from({ length: 10 }, (_, idx) => {
       const qNumber = idx + 1;
-      const media =
+      const media: UiQuestionMedia | undefined =
         qNumber % 2 === 0
           ? {
               kind: qNumber % 4 === 0 ? "image" : "diagram",

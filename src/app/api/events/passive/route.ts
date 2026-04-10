@@ -22,15 +22,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const user = await ensureDemoUser();
-  const event = await db.passiveSignalEvent.create({
-    data: {
-      userId: user.id,
-      type: parsed.data.type,
-      meta: parsed.data.meta
-        ? (JSON.parse(JSON.stringify(parsed.data.meta)) as any)
-        : undefined,
-    },
   const user = auth.user;
   const event = await PassiveSignalEventModel.create({
     userId: user._id,

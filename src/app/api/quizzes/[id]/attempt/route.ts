@@ -52,12 +52,11 @@ export async function POST(
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
 
-  const questionMap = new Map(quiz.questions.map((q: any) => [q.id, q]));
   const questions = (quiz.questions ?? []) as QuizQuestion[];
   const questionMap = new Map<string, QuizQuestion>(questions.map((q) => [String(q._id), q]));
   let correct = 0;
-  const questionAttempts = parsed.data.answers.map((answer: any) => {
-    const question: any = questionMap.get(answer.questionId);
+  const questionAttempts = parsed.data.answers.map((answer) => {
+    const question = questionMap.get(answer.questionId);
     const isCorrect = question ? question.correctIdx === answer.selectedIdx : false;
     if (isCorrect) correct += 1;
     return {
@@ -78,12 +77,6 @@ export async function POST(
     questionAttempts,
   });
 
-  await db.passiveSignalEvent.create({
-    data: {
-      userId: user.id,
-      type: "QUIZ_SUBMIT",
-      meta: { quizId: quiz.id, score } as any,
-    },
   await PassiveSignalEventModel.create({
     userId: user._id,
     type: "QUIZ_SUBMIT",

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { TopNav } from "@/components/top-nav";
 import { QuizTodoList } from "@/components/quiz-todo-list";
 import { StudyCalendar } from "@/components/study-calendar";
+import { GoogleAuthButton } from "@/components/google-auth-button";
 import { useState } from "react";
 
 // Mock quiz data organized by course
@@ -42,7 +43,6 @@ const MOCK_REVIEW_QUESTIONS = [
   { question: "Explain the law of conservation of energy", course: "Physics", attempts: 2, type: "MC" },
   { question: "Define oxidation-reduction reactions", course: "Chemistry", attempts: 4, type: "MC" },
 ];
-import { GoogleAuthButton } from "@/components/google-auth-button";
 
 export default function Home() {
   const [expandedConcepts, setExpandedConcepts] = useState<number | null>(null);
@@ -81,11 +81,6 @@ export default function Home() {
           <div className="mt-3">
             <GoogleAuthButton />
           </div>
-          <form action="/api/bootstrap" method="post" className="mt-4">
-            <button className="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-slate-800">
-              Initialize Demo Data
-            </button>
-          </form>
         </section>
 
         {/* Main Layout: Calendar (left) and Content (right) */}

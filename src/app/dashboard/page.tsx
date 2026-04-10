@@ -42,7 +42,10 @@ export default async function DashboardPage() {
   const avgScore =
     attempts.length === 0
       ? 0
-      : Math.round((attempts.reduce((acc: number, curr: any) => acc + curr.score, 0) / attempts.length) * 100);
+      : Math.round((attempts.reduce((acc, curr) => acc + curr.score, 0) / attempts.length) * 100);
+  const reasonList = Array.isArray(latestAssessment?.reasons)
+    ? (latestAssessment.reasons as string[])
+    : [];
 
   return (
     <div className="min-h-screen">
@@ -62,9 +65,8 @@ export default async function DashboardPage() {
             <section className="rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="font-semibold">Latest Risk Reasons</h2>
               <div className="mt-2 flex flex-wrap gap-2">
-                {Array.isArray(latestAssessment?.reasons) && latestAssessment.reasons.length > 0 ? (
-                  latestAssessment.reasons.map((reason: any) => (
-                  latestAssessment.reasons.map((reason: string) => (
+                {reasonList.length > 0 ? (
+                  reasonList.map((reason) => (
                     <span key={String(reason)} className="rounded border border-slate-300 bg-slate-100 px-2 py-1 text-sm">
                       {String(reason)}
                     </span>
@@ -78,8 +80,6 @@ export default async function DashboardPage() {
             <section className="rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="font-semibold">Recent Interventions</h2>
               <ul className="mt-2 space-y-2">
-                {interventions.map((item: any) => (
-                  <li key={item.id} className="rounded border border-slate-200 bg-slate-50 p-2 text-sm">
                 {interventions.map((item) => (
                   <li key={String(item._id)} className="rounded border border-slate-200 bg-slate-50 p-2 text-sm">
                     <p className="font-medium">{item.type}</p>

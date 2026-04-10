@@ -28,15 +28,6 @@ export async function GET(req: NextRequest) {
 
   const seen = new Set<string>();
   const rows = latestAssessments
-    .filter((item: typeof latestAssessments[0]) => {
-      if (seen.has(item.userId)) return false;
-      seen.add(item.userId);
-      return item.riskLevel !== "LOW";
-    })
-    .map((item: typeof latestAssessments[0]) => ({
-      userId: item.userId,
-      name: item.user.name,
-      email: item.user.email,
     .filter((item) => {
       const userId = String(item.userId);
       if (seen.has(userId)) return false;
