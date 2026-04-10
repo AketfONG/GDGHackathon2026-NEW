@@ -1,7 +1,9 @@
 "use client";
 
 import { TopNav } from "@/components/top-nav";
-import { useState } from "react";
+import { getScheduledStudyTasks } from "@/lib/scheduled-quizzes";
+import Link from "next/link";
+import { useMemo, useState } from "react";
 
 interface StudyTask {
   id: string;
@@ -19,8 +21,6 @@ interface StudyTask {
   topicsCovered?: string[];
   studyTips?: string[];
 }
-
-const MOCK_STUDY_PLAN: StudyTask[] = [];
 
 const getTypeColor = (type: string) => {
   switch (type) {
@@ -53,9 +53,14 @@ const getTypeLabel = (type: string) => {
 };
 
 export default function SchedulePage() {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 3, 1)); // April 2026
+  const [currentDate, setCurrentDate] = useState(() => {
+    const n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), 1);
+  });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<StudyTask | null>(null);
+
+  const studyPlan = useMemo(() => getScheduledStudyTasks(), []);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -65,7 +70,7 @@ export default function SchedulePage() {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   // Group tasks by date
-  const tasksByDate = MOCK_STUDY_PLAN.reduce(
+  const tasksByDate = studyPlan.reduce(
     (acc, task) => {
       if (!acc[task.date]) {
         acc[task.date] = [];
@@ -113,8 +118,8 @@ export default function SchedulePage() {
         <section className="mb-8">
           <h1 className="text-3xl font-semibold text-slate-900">Study Schedule</h1>
           <p className="mt-2 text-slate-600">
-            Click a date to view tasks for that day. The calendar starts empty—add your own blocks when you are
-            ready (no sample quizzes are pre-filled).
+            Click a date to view tasks for that day. Upcoming hot and review quizzes for MATH2411, TEMG3950, and
+            HUMA2104 are pre-filled with due dates relative to today.
           </p>
         </section>
 
@@ -299,11 +304,19 @@ export default function SchedulePage() {
                     )}
 
                     {/* Do Quiz Button */}
-                    {(selectedTask.type === "hot_quiz" || selectedTask.type === "cold_quiz" || selectedTask.type === "review_quiz") && (
-                      <button className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 transition-colors">
-                        Start {getTypeLabel(selectedTask.type)}
-                      </button>
-                    )}
+                    {(selectedTask.type === "hot_quiz" || selectedTask.type === "cold_quiz" || selectedTask.type === "review_quiz") &&
+                      (selectedTask.id.startsWith("scheduled-") ? (
+                        <Link
+                          href={`/quizzes/${encodeURIComponent(selectedTask.id)}`}
+                          className="mt-4 block w-full rounded-lg bg-blue-600 px-4 py-2 text-center font-medium text-white transition-colors hover:bg-blue-700"
+                        >
+                          Open quiz
+                        </Link>
+                      ) : (
+                        <button className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 transition-colors">
+                          Start {getTypeLabel(selectedTask.type)}
+                        </button>
+                      ))}
 
                     {/* Study Tips */}
                     {selectedTask.type === "study_topic" && (

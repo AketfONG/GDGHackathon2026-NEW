@@ -6,10 +6,11 @@ import { useState } from "react";
 
 const MOCK_COURSES = [
   { id: "econ2103", name: "ECON2103" },
-  { id: "bio101", name: "Biology 101" },
-  { id: "chem201", name: "Chemistry Advanced" },
-  { id: "math301", name: "Calculus I" },
-  { id: "phys101", name: "Physics Mechanics" },
+  { id: "comp3511", name: "COMP3511" },
+  { id: "math2411", name: "MATH2411" },
+  { id: "huma2104", name: "HUMA2104" },
+  { id: "mark3220", name: "MARK3220" },
+  { id: "temg3950", name: "TEMG3950" },
 ];
 
 const MOCK_WEEKS = [

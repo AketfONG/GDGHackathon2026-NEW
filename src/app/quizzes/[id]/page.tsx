@@ -6,18 +6,42 @@ import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/mongodb";
 import { QuizModel } from "@/models/Quiz";
 import type { UiQuiz } from "@/lib/ui-quizzes";
+import { getDefaultScheduledUiQuiz } from "@/lib/default-scheduled-quizzes";
 import { getServerUser } from "@/lib/auth/server-user";
 import { QUIZ_CLIENT_SCOPE_COOKIE } from "@/lib/quiz-client-scope";
 import { viewerCanAccessQuiz, isSharedDemoUser } from "@/lib/quiz-access";
+import { isMongoObjectIdString } from "@/lib/mongo-object-id";
 
 export const dynamic = "force-dynamic";
 
-function isMongoObjectIdString(id: string): boolean {
-  return /^[a-f\d]{24}$/i.test(id);
-}
-
 export default async function QuizTakePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  const defaultQuiz = getDefaultScheduledUiQuiz(id);
+  if (defaultQuiz) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <TopNav />
+        <main className="mx-auto w-full max-w-3xl px-4 py-8">
+          <Link href="/quizzes" className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+            ← Back to Quizzes
+          </Link>
+          <div className="mt-4 rounded-lg border border-slate-200 bg-white p-6">
+            <h1 className="text-2xl font-bold text-slate-900">{defaultQuiz.title}</h1>
+            <p className="mt-1 text-sm text-slate-600">
+              {defaultQuiz.topic} · {defaultQuiz.difficulty}
+            </p>
+            <p className="mt-2 text-xs text-slate-500">
+              Default practice quiz — results are shown on this device only (not saved to your account).
+            </p>
+            <div className="mt-6">
+              <QuizAttemptForm quiz={defaultQuiz} />
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (!isMongoObjectIdString(id)) {
     return (

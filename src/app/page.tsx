@@ -5,10 +5,44 @@ import { TopNav } from "@/components/top-nav";
 import { QuizTodoList } from "@/components/quiz-todo-list";
 import { StudyCalendar } from "@/components/study-calendar";
 import { GoogleAuthButton } from "@/components/google-auth-button";
-import { useState } from "react";
+import { getScheduledStudyTasks, type ScheduledStudyTask } from "@/lib/scheduled-quizzes";
+import { useMemo, useState } from "react";
+
+function taskTypeStyles(type: ScheduledStudyTask["type"]) {
+  switch (type) {
+    case "hot_quiz":
+      return "bg-red-100 text-red-800";
+    case "review_quiz":
+      return "bg-green-100 text-green-800";
+    case "cold_quiz":
+      return "bg-blue-100 text-blue-800";
+    default:
+      return "bg-slate-100 text-slate-800";
+  }
+}
+
+function taskTypeLabel(type: ScheduledStudyTask["type"]) {
+  switch (type) {
+    case "hot_quiz":
+      return "Hot quiz";
+    case "review_quiz":
+      return "Review";
+    case "cold_quiz":
+      return "Cold quiz";
+    default:
+      return "Study";
+  }
+}
+
+const HOME_UNCLEAR_CONCEPTS = [
+  { course: "TEMG3950", concept: "Root Cause Analysis" },
+  { course: "COMP3511", concept: "Operating Systems" },
+  { course: "ECON2103", concept: "Monopoly" },
+] as const;
 
 export default function Home() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const scheduleTasks = useMemo(() => getScheduledStudyTasks(), []);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -37,13 +71,23 @@ export default function Home() {
                 </Link>
               </div>
               <StudyCalendar
-                tasks={[]}
+                tasks={scheduleTasks}
                 onDateSelect={setSelectedDate}
                 selectedDate={selectedDate}
               />
-              <p className="mt-4 text-center text-sm text-slate-500">
-                No events yet. Add tasks on the Schedule page after you have materials to study.
-              </p>
+              {scheduleTasks.length === 0 ? (
+                <p className="mt-4 text-center text-sm text-slate-500">
+                  No events yet. Add tasks on the Schedule page after you have materials to study.
+                </p>
+              ) : (
+                <p className="mt-4 text-center text-sm text-slate-500">
+                  Blue days have a quiz or review. Open{" "}
+                  <Link href="/schedule" className="font-semibold text-blue-600 hover:text-blue-700">
+                    Schedule
+                  </Link>{" "}
+                  for details.
+                </p>
+              )}
             </div>
 
             {selectedDate && (
@@ -55,14 +99,47 @@ export default function Home() {
                     day: "numeric",
                   })}
                 </h3>
-                <p className="text-sm text-slate-500">Nothing scheduled for this day.</p>
+                {(() => {
+                  const dayTasks = scheduleTasks.filter((t) => t.date === selectedDate);
+                  if (dayTasks.length === 0) {
+                    return <p className="text-sm text-slate-500">Nothing scheduled for this day.</p>;
+                  }
+                  return (
+                    <ul className="space-y-3">
+                      {dayTasks.map((task) => (
+                        <li
+                          key={task.id}
+                          className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={`rounded px-2 py-0.5 text-xs font-semibold ${taskTypeStyles(task.type)}`}
+                            >
+                              {taskTypeLabel(task.type)}
+                            </span>
+                            <span className="font-medium text-slate-900">{task.topic}</span>
+                          </div>
+                          <p className="mt-1 text-slate-800">{task.title}</p>
+                          <p className="mt-1 text-xs text-slate-600">{task.time}</p>
+                          <Link
+                            href={`/quizzes/${encodeURIComponent(task.id)}`}
+                            className="mt-2 inline-block text-xs font-semibold text-blue-600 hover:text-blue-700"
+                          >
+                            Open quiz →
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  );
+                })()}
               </div>
             )}
 
             <div className="rounded-lg border border-slate-200 bg-white p-6">
               <h2 className="mb-2 text-lg font-semibold text-slate-900">Tests &amp; quizzes</h2>
               <p className="mb-4 text-sm text-slate-600">
-                Cold tests only appear after you upload files and generate a quiz. There are no sample tests.
+                Hot and review items for MATH2411, HUMA2104, and TEMG3950 are on the Quizzes page with due dates.
+                Cold tests still require an upload.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Link
@@ -89,9 +166,17 @@ export default function Home() {
 
             <div className="rounded-lg border border-slate-200 bg-white p-6">
               <h2 className="mb-4 text-lg font-semibold text-slate-900">Unclear concepts</h2>
-              <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-600">
-                Nothing here yet. Complete quizzes and check-ins to surface topics that need work.
-              </p>
+              <ul className="space-y-3">
+                {HOME_UNCLEAR_CONCEPTS.map(({ course, concept }) => (
+                  <li
+                    key={course}
+                    className="flex flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <span className="text-sm font-semibold text-slate-900">{course}</span>
+                    <span className="text-sm text-slate-700">{concept}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </div>
