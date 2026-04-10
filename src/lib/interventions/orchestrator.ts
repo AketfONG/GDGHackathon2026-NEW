@@ -1,6 +1,14 @@
-import { InterventionType, Prisma } from "@prisma/client";
-import { db } from "@/lib/db";
 import { evaluateMicroSlip } from "@/lib/drift/microslip";
+import { InterventionActionModel } from "@/models/InterventionAction";
+import { connectToDatabase } from "@/lib/mongodb";
+import { Types } from "mongoose";
+
+type InterventionType =
+  | "RECAP_2MIN"
+  | "CONFIDENCE_RESET"
+  | "SWITCH_DIFFICULTY"
+  | "SCHEDULE_REPLAN"
+  | "MENTOR_PING";
 
 function buildMessage(type: InterventionType) {
   switch (type) {
@@ -20,16 +28,17 @@ function buildMessage(type: InterventionType) {
 }
 
 export async function runInterventionCycle(userId: string) {
+  await connectToDatabase();
   const assessment = await evaluateMicroSlip(userId);
+  const userObjectId = new Types.ObjectId(userId);
 
   const cooldownBoundary = new Date(Date.now() - 30 * 60 * 1000);
-  const recentIntervention = await db.interventionAction.findFirst({
-    where: {
-      userId,
-      createdAt: { gte: cooldownBoundary },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const recentIntervention = await InterventionActionModel.findOne({
+    userId: userObjectId,
+    createdAt: { $gte: cooldownBoundary },
+  })
+    .sort({ createdAt: -1 })
+    .lean();
 
   if (recentIntervention) {
     return { assessment, intervention: null, skipped: true };
@@ -42,16 +51,14 @@ export async function runInterventionCycle(userId: string) {
         ? "SCHEDULE_REPLAN"
         : "RECAP_2MIN";
 
-  const intervention = await db.interventionAction.create({
-    data: {
-      userId,
-      type,
-      triggerReasons: assessment.reasons as Prisma.InputJsonValue,
-      message: buildMessage(type),
-      status: "PENDING",
-      cooldownUntil: new Date(Date.now() + 30 * 60 * 1000),
-    },
+  const intervention = await InterventionActionModel.create({
+    userId: userObjectId,
+    type,
+    triggerReasons: assessment.reasons,
+    message: buildMessage(type),
+    status: "PENDING",
+    cooldownUntil: new Date(Date.now() + 30 * 60 * 1000),
   });
 
-  return { assessment, intervention, skipped: false };
+  return { assessment, intervention: intervention.toObject(), skipped: false };
 }

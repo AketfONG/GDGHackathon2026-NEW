@@ -4,7 +4,8 @@ Quiz-first study agent that passively detects micro-slips and triggers autonomou
 
 ### Stack
 - Next.js (App Router) + TypeScript + Tailwind
-- Prisma + PostgreSQL
+- MongoDB + Mongoose
+- Firebase Auth (Google sign-in + server token verification)
 - Rule-based drift scoring + intervention orchestration
 
 ### Core Features
@@ -17,18 +18,12 @@ Quiz-first study agent that passively detects micro-slips and triggers autonomou
 ### Run Locally
 ```bash
 npm install
-npm run db:setup
 npm run dev
 ```
 
+Copy `.env.example` to `.env.local`, fill MongoDB and Firebase values, then run.
+
 Open [http://localhost:3000](http://localhost:3000), then click **Initialize Demo Data** on home.
-
-If Docker is not available, start your own PostgreSQL and set `DATABASE_URL` in `.env`, then run:
-
-```bash
-npm run db:push
-npm run db:generate
-```
 
 ### Main Routes
 - `/dashboard`

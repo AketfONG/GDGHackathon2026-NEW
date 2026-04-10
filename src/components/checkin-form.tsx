@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getAuthHeaders } from "@/lib/auth/client-token";
 
 export function CheckInForm() {
   const [status, setStatus] = useState("");
@@ -14,7 +15,7 @@ export function CheckInForm() {
     };
     const res = await fetch("/api/checkins", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
       body: JSON.stringify(payload),
     });
     const data = await res.json();

@@ -1,15 +1,21 @@
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { ensureDemoUser } from "@/lib/demo-user";
+import { NextRequest, NextResponse } from "next/server";
 import { backendDisabledResponse, isBackendDisabled } from "@/lib/backend-toggle";
+import { verifyRequestToken } from "@/lib/auth/verify-token";
+import { connectToDatabase } from "@/lib/mongodb";
+import { TimetableBlockModel } from "@/models/TimetableBlock";
+import { ObligationModel } from "@/models/Obligation";
+import { ScheduleAdherenceModel } from "@/models/ScheduleAdherence";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (isBackendDisabled()) return backendDisabledResponse();
-  const user = await ensureDemoUser();
+  const auth = await verifyRequestToken(req);
+  if (!auth.ok) return auth.response;
+  await connectToDatabase();
+
   const [blocks, obligations, latestAdherence] = await Promise.all([
-    db.timetableBlock.findMany({ where: { userId: user.id } }),
-    db.obligation.findMany({ where: { userId: user.id } }),
-    db.scheduleAdherence.findFirst({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
+    TimetableBlockModel.find({ userId: auth.user._id }).lean(),
+    ObligationModel.find({ userId: auth.user._id }).lean(),
+    ScheduleAdherenceModel.findOne({ userId: auth.user._id }).sort({ createdAt: -1 }).lean(),
   ]);
 
   return NextResponse.json({ blocks, obligations, latestAdherence });

@@ -1,28 +1,21 @@
-import { db } from "@/lib/db";
 import { scoreDrift } from "@/lib/drift/score";
-import { Prisma } from "@prisma/client";
+import { connectToDatabase } from "@/lib/mongodb";
+import { QuizAttemptModel } from "@/models/QuizAttempt";
+import { PassiveSignalEventModel } from "@/models/PassiveSignalEvent";
+import { CheckInModel } from "@/models/CheckIn";
+import { ScheduleAdherenceModel } from "@/models/ScheduleAdherence";
+import { DriftAssessmentModel } from "@/models/DriftAssessment";
+import { Types } from "mongoose";
 
 export async function evaluateMicroSlip(userId: string) {
+  await connectToDatabase();
+  const userObjectId = new Types.ObjectId(userId);
+
   const [attempts, passiveEvents, latestCheckIn, adherence] = await Promise.all([
-    db.quizAttempt.findMany({
-      where: { userId },
-      orderBy: { submittedAt: "desc" },
-      take: 8,
-      include: { questionAttempts: true },
-    }),
-    db.passiveSignalEvent.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 40,
-    }),
-    db.checkIn.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-    }),
-    db.scheduleAdherence.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-    }),
+    QuizAttemptModel.find({ userId: userObjectId }).sort({ submittedAt: -1 }).limit(8).lean(),
+    PassiveSignalEventModel.find({ userId: userObjectId }).sort({ createdAt: -1 }).limit(40).lean(),
+    CheckInModel.findOne({ userId: userObjectId }).sort({ createdAt: -1 }).lean(),
+    ScheduleAdherenceModel.findOne({ userId: userObjectId }).sort({ createdAt: -1 }).lean(),
   ]);
 
   const accuracyAvg =
@@ -52,12 +45,12 @@ export async function evaluateMicroSlip(userId: string) {
     latestFocusLevel: latestCheckIn?.focusLevel ?? null,
   });
 
-  return db.driftAssessment.create({
-    data: {
-      userId,
-      riskScore: drift.riskScore,
-      riskLevel: drift.riskLevel,
-      reasons: drift.reasons as Prisma.InputJsonValue,
-    },
+  const assessment = await DriftAssessmentModel.create({
+    userId: userObjectId,
+    riskScore: drift.riskScore,
+    riskLevel: drift.riskLevel,
+    reasons: drift.reasons,
+    assessedAt: new Date(),
   });
+  return assessment.toObject();
 }

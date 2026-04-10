@@ -1,24 +1,24 @@
-import { db } from "@/lib/db";
 import { ensureDemoUser } from "@/lib/demo-user";
 import { TopNav } from "@/components/top-nav";
 import { DbOfflineNotice } from "@/components/db-offline-notice";
 import { isDatabaseUnavailableError } from "@/lib/db-health";
 import { isBackendDisabled } from "@/lib/backend-toggle";
+import { connectToDatabase } from "@/lib/mongodb";
+import { InterventionActionModel } from "@/models/InterventionAction";
+import { Types } from "mongoose";
 
 export const dynamic = "force-dynamic";
 
 export default async function InterventionsPage() {
   let dbOffline = isBackendDisabled();
-  let rows: Awaited<ReturnType<typeof db.interventionAction.findMany>> = [];
+  let rows: Awaited<ReturnType<typeof InterventionActionModel.find>> = [];
 
   if (!dbOffline) {
     try {
-    const user = await ensureDemoUser();
-    rows = await db.interventionAction.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: "desc" },
-      take: 20,
-    });
+      await connectToDatabase();
+      const user = await ensureDemoUser();
+      const userId = new Types.ObjectId(String(user._id));
+      rows = await InterventionActionModel.find({ userId }).sort({ createdAt: -1 }).limit(20).lean();
     } catch (error) {
       if (isDatabaseUnavailableError(error)) {
         dbOffline = true;
@@ -37,7 +37,7 @@ export default async function InterventionsPage() {
         {!dbOffline ? (
           <ul className="mt-4 space-y-2">
             {rows.map((row) => (
-              <li key={row.id} className="rounded-lg border border-slate-200 bg-white p-4">
+              <li key={String(row._id)} className="rounded-lg border border-slate-200 bg-white p-4">
                 <p className="font-medium">{row.type}</p>
                 <p className="text-sm text-slate-600">{row.message}</p>
                 <p className="mt-1 text-xs text-slate-500">{new Date(row.createdAt).toLocaleString()}</p>

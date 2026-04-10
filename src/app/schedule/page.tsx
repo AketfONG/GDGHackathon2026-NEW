@@ -1,31 +1,30 @@
-import { db } from "@/lib/db";
 import { ensureDemoUser } from "@/lib/demo-user";
 import { TopNav } from "@/components/top-nav";
 import { ScheduleForms } from "@/components/schedule-forms";
 import { DbOfflineNotice } from "@/components/db-offline-notice";
 import { isDatabaseUnavailableError } from "@/lib/db-health";
 import { isBackendDisabled } from "@/lib/backend-toggle";
+import { connectToDatabase } from "@/lib/mongodb";
+import { TimetableBlockModel } from "@/models/TimetableBlock";
+import { ObligationModel } from "@/models/Obligation";
+import { Types } from "mongoose";
 
 export const dynamic = "force-dynamic";
 
 export default async function SchedulePage() {
   let dbOffline = isBackendDisabled();
-  let blocks: Awaited<ReturnType<typeof db.timetableBlock.findMany>> = [];
-  let obligations: Awaited<ReturnType<typeof db.obligation.findMany>> = [];
+  let blocks: Awaited<ReturnType<typeof TimetableBlockModel.find>> = [];
+  let obligations: Awaited<ReturnType<typeof ObligationModel.find>> = [];
 
   if (!dbOffline) {
     try {
-    const user = await ensureDemoUser();
-    [blocks, obligations] = await Promise.all([
-      db.timetableBlock.findMany({
-        where: { userId: user.id },
-        orderBy: [{ dayOfWeek: "asc" }, { startMinutes: "asc" }],
-      }),
-      db.obligation.findMany({
-        where: { userId: user.id },
-        orderBy: [{ dayOfWeek: "asc" }, { startMinutes: "asc" }],
-      }),
-    ]);
+      await connectToDatabase();
+      const user = await ensureDemoUser();
+      const userId = new Types.ObjectId(String(user._id));
+      [blocks, obligations] = await Promise.all([
+        TimetableBlockModel.find({ userId }).sort({ dayOfWeek: 1, startMinutes: 1 }).lean(),
+        ObligationModel.find({ userId }).sort({ dayOfWeek: 1, startMinutes: 1 }).lean(),
+      ]);
 
     } catch (error) {
       if (isDatabaseUnavailableError(error)) {

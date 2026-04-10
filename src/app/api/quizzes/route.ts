@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
 import { backendDisabledResponse, isBackendDisabled } from "@/lib/backend-toggle";
+import { connectToDatabase } from "@/lib/mongodb";
+import { QuizModel } from "@/models/Quiz";
+import { verifyRequestToken } from "@/lib/auth/verify-token";
 
 const createQuizSchema = z.object({
   title: z.string().min(3),
@@ -19,32 +21,32 @@ const createQuizSchema = z.object({
     .min(1),
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (isBackendDisabled()) return backendDisabledResponse();
-  const quizzes = await db.quiz.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { questions: true },
-  });
+  const auth = await verifyRequestToken(req);
+  if (!auth.ok) return auth.response;
+  await connectToDatabase();
+  const quizzes = await QuizModel.find({}).sort({ createdAt: -1 }).lean();
   return NextResponse.json({ quizzes });
 }
 
 export async function POST(req: NextRequest) {
   if (isBackendDisabled()) return backendDisabledResponse();
+  const auth = await verifyRequestToken(req);
+  if (!auth.ok) return auth.response;
+  await connectToDatabase();
   const body = await req.json();
   const parsed = createQuizSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const quiz = await db.quiz.create({
-    data: {
-      title: parsed.data.title,
-      topic: parsed.data.topic,
-      difficulty: parsed.data.difficulty,
-      questions: { create: parsed.data.questions },
-    },
-    include: { questions: true },
+  const quiz = await QuizModel.create({
+    title: parsed.data.title,
+    topic: parsed.data.topic,
+    difficulty: parsed.data.difficulty,
+    questions: parsed.data.questions,
   });
 
-  return NextResponse.json({ quiz }, { status: 201 });
+  return NextResponse.json({ quiz: quiz.toObject() }, { status: 201 });
 }

@@ -1,38 +1,29 @@
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { ensureDemoUser } from "@/lib/demo-user";
+import { NextRequest, NextResponse } from "next/server";
 import { backendDisabledResponse, isBackendDisabled } from "@/lib/backend-toggle";
+import { verifyRequestToken } from "@/lib/auth/verify-token";
+import { connectToDatabase } from "@/lib/mongodb";
+import { QuizAttemptModel } from "@/models/QuizAttempt";
+import { DriftAssessmentModel } from "@/models/DriftAssessment";
+import { InterventionActionModel } from "@/models/InterventionAction";
+import { ScheduleAdherenceModel } from "@/models/ScheduleAdherence";
+import { TimetableBlockModel } from "@/models/TimetableBlock";
+import { ObligationModel } from "@/models/Obligation";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (isBackendDisabled()) return backendDisabledResponse();
-  const user = await ensureDemoUser();
+  const auth = await verifyRequestToken(req);
+  if (!auth.ok) return auth.response;
+  await connectToDatabase();
+  const user = auth.user;
 
   const [attempts, latestAssessment, interventions, adherence, scheduleBlocks, obligations] =
     await Promise.all([
-      db.quizAttempt.findMany({
-        where: { userId: user.id },
-        orderBy: { submittedAt: "desc" },
-        take: 10,
-      }),
-      db.driftAssessment.findFirst({
-        where: { userId: user.id },
-        orderBy: { assessedAt: "desc" },
-      }),
-      db.interventionAction.findMany({
-        where: { userId: user.id },
-        orderBy: { createdAt: "desc" },
-        take: 8,
-      }),
-      db.scheduleAdherence.findFirst({
-        where: { userId: user.id },
-        orderBy: { createdAt: "desc" },
-      }),
-      db.timetableBlock.findMany({
-        where: { userId: user.id },
-      }),
-      db.obligation.findMany({
-        where: { userId: user.id },
-      }),
+      QuizAttemptModel.find({ userId: user._id }).sort({ submittedAt: -1 }).limit(10).lean(),
+      DriftAssessmentModel.findOne({ userId: user._id }).sort({ assessedAt: -1 }).lean(),
+      InterventionActionModel.find({ userId: user._id }).sort({ createdAt: -1 }).limit(8).lean(),
+      ScheduleAdherenceModel.findOne({ userId: user._id }).sort({ createdAt: -1 }).lean(),
+      TimetableBlockModel.find({ userId: user._id }).lean(),
+      ObligationModel.find({ userId: user._id }).lean(),
     ]);
 
   return NextResponse.json({
