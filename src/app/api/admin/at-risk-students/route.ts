@@ -12,12 +12,12 @@ export async function GET() {
 
   const seen = new Set<string>();
   const rows = latestAssessments
-    .filter((item) => {
+    .filter((item: typeof latestAssessments[0]) => {
       if (seen.has(item.userId)) return false;
       seen.add(item.userId);
       return item.riskLevel !== "LOW";
     })
-    .map((item) => ({
+    .map((item: typeof latestAssessments[0]) => ({
       userId: item.userId,
       name: item.user.name,
       email: item.user.email,
@@ -26,7 +26,7 @@ export async function GET() {
       reasons: item.reasons,
       assessedAt: item.assessedAt,
     }))
-    .sort((a, b) => b.riskScore - a.riskScore);
+    .sort((a: any, b: any) => b.riskScore - a.riskScore);
 
   return NextResponse.json({ students: rows });
 }

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ensureDemoUser } from "@/lib/demo-user";
@@ -25,7 +24,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       type: parsed.data.type,
       meta: parsed.data.meta
-        ? (JSON.parse(JSON.stringify(parsed.data.meta)) as Prisma.InputJsonValue)
+        ? (JSON.parse(JSON.stringify(parsed.data.meta)) as any)
         : undefined,
     },
   });

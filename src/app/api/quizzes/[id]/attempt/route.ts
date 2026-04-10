@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ensureDemoUser } from "@/lib/demo-user";
@@ -39,10 +38,10 @@ export async function POST(
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
 
-  const questionMap = new Map(quiz.questions.map((q) => [q.id, q]));
+  const questionMap = new Map(quiz.questions.map((q: any) => [q.id, q]));
   let correct = 0;
-  const questionAttempts = parsed.data.answers.map((answer) => {
-    const question = questionMap.get(answer.questionId);
+  const questionAttempts = parsed.data.answers.map((answer: any) => {
+    const question: any = questionMap.get(answer.questionId);
     const isCorrect = question ? question.correctIdx === answer.selectedIdx : false;
     if (isCorrect) correct += 1;
     return {
@@ -72,7 +71,7 @@ export async function POST(
     data: {
       userId: user.id,
       type: "QUIZ_SUBMIT",
-      meta: { quizId: quiz.id, score } as Prisma.InputJsonValue,
+      meta: { quizId: quiz.id, score } as any,
     },
   });
 

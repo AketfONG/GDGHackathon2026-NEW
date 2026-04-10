@@ -42,7 +42,7 @@ export async function GET() {
       avgScore:
         attempts.length === 0
           ? 0
-          : Number((attempts.reduce((a, b) => a + b.score, 0) / attempts.length).toFixed(2)),
+          : Number((attempts.reduce((a: number, b: any) => a + b.score, 0) / attempts.length).toFixed(2)),
       latestRisk: latestAssessment,
       latestAdherence: adherence?.adherenceScore ?? 1,
       scheduleBlockCount: scheduleBlocks.length,
