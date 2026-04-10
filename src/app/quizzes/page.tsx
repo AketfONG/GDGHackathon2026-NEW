@@ -10,6 +10,7 @@ import { QuizAttemptModel } from "@/models/QuizAttempt";
 import { getServerUser } from "@/lib/auth/server-user";
 import { QUIZ_CLIENT_SCOPE_COOKIE } from "@/lib/quiz-client-scope";
 import { isSharedDemoUser } from "@/lib/quiz-access";
+import { getScheduledCourseQuizzes } from "@/lib/scheduled-quizzes";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,9 @@ export default async function QuizzesPage() {
             score: Math.round(latest.score * 100),
           };
         });
+
+      const scheduled = getScheduledCourseQuizzes();
+      coldQuizzes = [...scheduled, ...coldQuizzes];
     } catch (error) {
       if (isDatabaseUnavailableError(error)) {
         dbOffline = true;
@@ -121,15 +125,18 @@ export default async function QuizzesPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Quizzes</h1>
           <p className="mt-2 text-slate-600">
-            Cold tests built from materials you upload appear here—nothing is shown until you generate one.
+            Upcoming hot and review quizzes for select courses are listed below. Cold tests from your uploads appear
+            here too once you generate them.
           </p>
         </div>
 
-        {!dbOffline && coldQuizzes.length > 0 ? (
+        {!dbOffline && coldQuizzes.some((q) => q.testType === "cold") ? (
           <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
             <div className="font-semibold text-blue-900">Cold test</div>
             <p className="mt-1 text-sm text-blue-800">
-              These quizzes were generated from files you uploaded for the listed course and week.
+              These quizzes were generated from files you uploaded for the listed course and week. Use{" "}
+              <span className="font-semibold">Delete quiz</span> on a card to remove it and clear saved attempts for
+              that quiz (cannot be undone).
             </p>
           </div>
         ) : null}

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { UiQuiz } from "@/lib/ui-quizzes";
+import { isDefaultScheduledQuizId } from "@/lib/default-scheduled-quizzes";
 import { getAuthHeaders } from "@/lib/auth/client-token";
 
 const QUESTIONS_PER_QUIZ = 10;
@@ -37,6 +38,24 @@ export function QuizAttemptForm({ quiz }: { quiz: UiQuiz }) {
   async function submitAttempt() {
     setIsSubmitting(true);
     setSubmitError(null);
+
+    if (isDefaultScheduledQuizId(quiz.id)) {
+      try {
+        const correct = visibleQuestions.reduce((acc, q) => {
+          const selected = selectedAnswers[q.id];
+          return acc + (selected === q.correctIdx ? 1 : 0);
+        }, 0);
+        const total = visibleQuestions.length;
+        const percent = Math.round((correct / Math.max(1, total)) * 100);
+        setScoreSummary({ correct, total, percent });
+        setPhase("results");
+        router.refresh();
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     const durationSec = Math.max(
       1,
       Math.round((Date.now() - startedAtRef.current) / 1000),

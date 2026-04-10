@@ -5,10 +5,12 @@ import Link from "next/link";
 import { getAuthHeaders } from "@/lib/auth/client-token";
 
 const COURSES = [
-  { id: "bio101", name: "Biology 101" },
-  { id: "chem201", name: "Chemistry Advanced" },
   { id: "econ2103", name: "ECON2103" },
-  { id: "math301", name: "Calculus I" },
+  { id: "comp3511", name: "COMP3511" },
+  { id: "math2411", name: "MATH2411" },
+  { id: "huma2104", name: "HUMA2104" },
+  { id: "mark3220", name: "MARK3220" },
+  { id: "temg3950", name: "TEMG3950" },
 ];
 
 const WEEKS = [
@@ -95,8 +97,9 @@ export function DocumentUploadForm() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("topic", topic || selectedCourse);
-      formData.append("course", selectedCourse);
+      const courseName = COURSES.find((c) => c.id === selectedCourse)?.name ?? selectedCourse;
+      formData.append("topic", topic || courseName);
+      formData.append("course", courseName);
       formData.append("week", selectedWeek);
 
       const response = await fetch("/api/quizzes/generate-from-document", {
@@ -129,7 +132,7 @@ export function DocumentUploadForm() {
         credentials: "include",
         headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
-          course: selectedCourse,
+          course: COURSES.find((c) => c.id === selectedCourse)?.name ?? selectedCourse,
           week: selectedWeek,
           questions: questions,
           testType: "cold",
