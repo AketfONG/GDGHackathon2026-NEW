@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { getAuthHeaders } from "@/lib/auth/client-token";
 
 const COURSES = [
   { id: "bio101", name: "Biology 101" },
@@ -122,9 +123,11 @@ export function DocumentUploadForm() {
   const handleSaveToQuizzes = async () => {
     setSavingToQuizzes(true);
     try {
+      const authHeaders = await getAuthHeaders();
       const response = await fetch("/api/quizzes/save-from-upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           course: selectedCourse,
           week: selectedWeek,

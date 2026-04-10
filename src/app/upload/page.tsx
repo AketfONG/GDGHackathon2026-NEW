@@ -83,6 +83,7 @@ export default function UploadMaterialsPage() {
     try {
       const res = await fetch("/api/quizzes/upload-generate-cold", {
         method: "POST",
+        credentials: "include",
         body: formData,
       });
       const data = (await res.json().catch(() => ({}))) as {

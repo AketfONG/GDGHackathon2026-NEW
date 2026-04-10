@@ -21,12 +21,18 @@ const quizSchema = new Schema(
     testType: { type: String, enum: ["cold", "hot", "review"] },
     /** True only when created via upload-generate-cold or save-from-upload (cold). Listed on /quizzes. */
     createdFromUpload: { type: Boolean, default: false },
+    ownerUserId: { type: Schema.Types.ObjectId, ref: "User", index: true },
+    /** Set from HttpOnly cookie so quizzes are not visible to other browsers / shared demo DB users. */
+    quizClientScope: { type: String, index: true },
   },
   { timestamps: true },
 );
 
-// Next.js can keep a cached model from before new schema fields existed; then saves drop those paths.
-if (mongoose.models.Quiz && !mongoose.models.Quiz.schema.path("createdFromUpload")) {
+const quizSchemaPaths = ["createdFromUpload", "ownerUserId", "quizClientScope"] as const;
+const quizSchemaStale =
+  mongoose.models.Quiz &&
+  quizSchemaPaths.some((p) => !mongoose.models.Quiz!.schema.path(p));
+if (quizSchemaStale) {
   delete mongoose.models.Quiz;
 }
 

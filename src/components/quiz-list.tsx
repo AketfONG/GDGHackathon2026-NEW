@@ -145,7 +145,7 @@ export function QuizList({ quizzes }: QuizListProps) {
                                 ? "Not Started"
                                 : quiz.status === "in-progress"
                                   ? "In Progress"
-                                  : "Completed"}
+                                  : "Done"}
                             </span>
                             {quiz.status === "completed" && (
                               <div className="mt-2">

@@ -7,6 +7,8 @@ import { QuizModel } from "@/models/Quiz";
 import { QuizAttemptModel } from "@/models/QuizAttempt";
 import { PassiveSignalEventModel } from "@/models/PassiveSignalEvent";
 import { verifyRequestToken } from "@/lib/auth/verify-token";
+import { QUIZ_CLIENT_SCOPE_COOKIE } from "@/lib/quiz-client-scope";
+import { viewerCanAccessQuiz, isSharedDemoUser } from "@/lib/quiz-access";
 import { Types } from "mongoose";
 
 type QuizQuestion = {
@@ -56,6 +58,8 @@ export async function POST(
     createdFromUpload?: boolean;
     course?: string;
     week?: string;
+    ownerUserId?: unknown;
+    quizClientScope?: string | null;
   };
   if (
     q.testType !== "cold" ||
@@ -63,6 +67,14 @@ export async function POST(
     !String(q.course ?? "").trim() ||
     !String(q.week ?? "").trim()
   ) {
+    return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+  }
+
+  const scope = req.cookies.get(QUIZ_CLIENT_SCOPE_COOKIE)?.value ?? null;
+  const viewerIsDemo = isSharedDemoUser(
+    user as { email?: string | null; firebaseUid?: string | null },
+  );
+  if (!viewerCanAccessQuiz(q, { userId: user._id, scope, viewerIsDemo })) {
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
 
@@ -81,7 +93,8 @@ export async function POST(
     };
   });
 
-  const score = questions.length === 0 ? 0 : correct / questions.length;
+  const answered = parsed.data.answers.length;
+  const score = answered === 0 ? 0 : correct / answered;
 
   const attempt = await QuizAttemptModel.create({
     userId: user._id,

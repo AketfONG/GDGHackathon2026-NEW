@@ -8,6 +8,8 @@ import { parseDocumentWithDocling } from "@/lib/ai/docling-service";
 import { connectToDatabase } from "@/lib/mongodb";
 import { QuizModel } from "@/models/Quiz";
 import { isBackendDisabled } from "@/lib/backend-toggle";
+import { verifyRequestToken } from "@/lib/auth/verify-token";
+import { QUIZ_CLIENT_SCOPE_COOKIE } from "@/lib/quiz-client-scope";
 
 /** One cold test length; split evenly across all uploaded files for this request. */
 function totalColdQuestionsTarget(): number {
@@ -95,6 +97,21 @@ export async function POST(req: NextRequest) {
     if (!course || !week) {
       return NextResponse.json(
         { success: false, error: "Course and week are required" },
+        { status: 400 }
+      );
+    }
+
+    const auth = await verifyRequestToken(req);
+    if (!auth.ok) return auth.response;
+
+    const quizScope = req.cookies.get(QUIZ_CLIENT_SCOPE_COOKIE)?.value?.trim();
+    if (!quizScope) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Open Upload Materials or Quizzes once in this browser, then try again (session cookie missing).",
+        },
         { status: 400 }
       );
     }
@@ -207,6 +224,8 @@ export async function POST(req: NextRequest) {
       week,
       testType: "cold" as const,
       createdFromUpload: true,
+      ownerUserId: auth.user._id,
+      quizClientScope: quizScope,
       questions: mappedQuestions,
     });
 
