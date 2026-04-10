@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { ensureDemoUser } from "@/lib/demo-user";
 import { backendDisabledResponse, isBackendDisabled } from "@/lib/backend-toggle";
+import { verifyRequestToken } from "@/lib/auth/verify-token";
+import { connectToDatabase } from "@/lib/mongodb";
+import { ObligationModel } from "@/models/Obligation";
 
 const obligationSchema = z.object({
   title: z.string().min(2),
@@ -12,18 +13,22 @@ const obligationSchema = z.object({
   nonSkippable: z.boolean().default(true),
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (isBackendDisabled()) return backendDisabledResponse();
-  const user = await ensureDemoUser();
-  const obligations = await db.obligation.findMany({
-    where: { userId: user.id },
-    orderBy: [{ dayOfWeek: "asc" }, { startMinutes: "asc" }],
-  });
+  const auth = await verifyRequestToken(req);
+  if (!auth.ok) return auth.response;
+  await connectToDatabase();
+  const obligations = await ObligationModel.find({ userId: auth.user._id })
+    .sort({ dayOfWeek: 1, startMinutes: 1 })
+    .lean();
   return NextResponse.json({ obligations });
 }
 
 export async function POST(req: NextRequest) {
   if (isBackendDisabled()) return backendDisabledResponse();
+  const auth = await verifyRequestToken(req);
+  if (!auth.ok) return auth.response;
+  await connectToDatabase();
   const body = await req.json();
   const parsed = obligationSchema.safeParse(body);
   if (!parsed.success) {
@@ -33,13 +38,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "startMinutes must be less than endMinutes" }, { status: 400 });
   }
 
-  const user = await ensureDemoUser();
-  const obligation = await db.obligation.create({
-    data: {
-      userId: user.id,
-      ...parsed.data,
-    },
-  });
+  const obligation = await ObligationModel.create({ userId: auth.user._id, ...parsed.data });
 
-  return NextResponse.json({ obligation }, { status: 201 });
+  return NextResponse.json({ obligation: obligation.toObject() }, { status: 201 });
 }

@@ -1,28 +1,35 @@
-import { db } from "@/lib/db";
 import { ensureDemoUser } from "@/lib/demo-user";
 import { TopNav } from "@/components/top-nav";
 import { DbOfflineNotice } from "@/components/db-offline-notice";
 import { isDatabaseUnavailableError } from "@/lib/db-health";
 import { isBackendDisabled } from "@/lib/backend-toggle";
+import { connectToDatabase } from "@/lib/mongodb";
+import { DriftAssessmentModel } from "@/models/DriftAssessment";
+import { QuizAttemptModel } from "@/models/QuizAttempt";
+import { InterventionActionModel } from "@/models/InterventionAction";
+import { ScheduleAdherenceModel } from "@/models/ScheduleAdherence";
+import { Types } from "mongoose";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   let dbOffline = isBackendDisabled();
-  let latestAssessment: Awaited<ReturnType<typeof db.driftAssessment.findFirst>> = null;
-  let attempts: Awaited<ReturnType<typeof db.quizAttempt.findMany>> = [];
-  let interventions: Awaited<ReturnType<typeof db.interventionAction.findMany>> = [];
-  let adherence: Awaited<ReturnType<typeof db.scheduleAdherence.findFirst>> = null;
+  let latestAssessment: Awaited<ReturnType<typeof DriftAssessmentModel.findOne>> = null;
+  let attempts: Awaited<ReturnType<typeof QuizAttemptModel.find>> = [];
+  let interventions: Awaited<ReturnType<typeof InterventionActionModel.find>> = [];
+  let adherence: Awaited<ReturnType<typeof ScheduleAdherenceModel.findOne>> = null;
 
   if (!dbOffline) {
     try {
-    const user = await ensureDemoUser();
-    [latestAssessment, attempts, interventions, adherence] = await Promise.all([
-      db.driftAssessment.findFirst({ where: { userId: user.id }, orderBy: { assessedAt: "desc" } }),
-      db.quizAttempt.findMany({ where: { userId: user.id }, orderBy: { submittedAt: "desc" }, take: 5 }),
-      db.interventionAction.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 5 }),
-      db.scheduleAdherence.findFirst({ where: { userId: user.id }, orderBy: { createdAt: "desc" } }),
-    ]);
+      await connectToDatabase();
+      const user = await ensureDemoUser();
+      const userId = new Types.ObjectId(String(user._id));
+      [latestAssessment, attempts, interventions, adherence] = await Promise.all([
+        DriftAssessmentModel.findOne({ userId }).sort({ assessedAt: -1 }).lean(),
+        QuizAttemptModel.find({ userId }).sort({ submittedAt: -1 }).limit(5).lean(),
+        InterventionActionModel.find({ userId }).sort({ createdAt: -1 }).limit(5).lean(),
+        ScheduleAdherenceModel.findOne({ userId }).sort({ createdAt: -1 }).lean(),
+      ]);
     } catch (error) {
       if (isDatabaseUnavailableError(error)) {
         dbOffline = true;
@@ -56,7 +63,7 @@ export default async function DashboardPage() {
               <h2 className="font-semibold">Latest Risk Reasons</h2>
               <div className="mt-2 flex flex-wrap gap-2">
                 {Array.isArray(latestAssessment?.reasons) && latestAssessment.reasons.length > 0 ? (
-                  latestAssessment.reasons.map((reason) => (
+                  latestAssessment.reasons.map((reason: string) => (
                     <span key={String(reason)} className="rounded border border-slate-300 bg-slate-100 px-2 py-1 text-sm">
                       {String(reason)}
                     </span>
@@ -71,7 +78,7 @@ export default async function DashboardPage() {
               <h2 className="font-semibold">Recent Interventions</h2>
               <ul className="mt-2 space-y-2">
                 {interventions.map((item) => (
-                  <li key={item.id} className="rounded border border-slate-200 bg-slate-50 p-2 text-sm">
+                  <li key={String(item._id)} className="rounded border border-slate-200 bg-slate-50 p-2 text-sm">
                     <p className="font-medium">{item.type}</p>
                     <p className="text-slate-600">{item.message}</p>
                   </li>

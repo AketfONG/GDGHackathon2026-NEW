@@ -1,8 +1,11 @@
-import { db } from "@/lib/db";
 import { TopNav } from "@/components/top-nav";
 import { DbOfflineNotice } from "@/components/db-offline-notice";
 import { isDatabaseUnavailableError } from "@/lib/db-health";
 import { isBackendDisabled } from "@/lib/backend-toggle";
+import { connectToDatabase } from "@/lib/mongodb";
+import { DriftAssessmentModel } from "@/models/DriftAssessment";
+import { UserModel } from "@/models/User";
+import { Types } from "mongoose";
 
 export const dynamic = "force-dynamic";
 
@@ -18,20 +21,38 @@ export default async function AtRiskAdminPage() {
 
   if (!dbOffline) {
     try {
-    const assessments = await db.driftAssessment.findMany({
-      orderBy: { assessedAt: "desc" },
-      include: { user: true },
-      take: 100,
-    });
+      await connectToDatabase();
+      const assessments = await DriftAssessmentModel.find({})
+        .sort({ assessedAt: -1 })
+        .limit(100)
+        .lean();
+      const userIds = Array.from(new Set(assessments.map((a) => String(a.userId))));
+      const users = await UserModel.find({
+        _id: { $in: userIds.map((id) => new Types.ObjectId(id)) },
+      })
+        .lean()
+        .then((items) => new Map(items.map((u) => [String(u._id), u])));
 
-    const latestByUser = new Map<string, (typeof assessments)[number]>();
-    for (const item of assessments) {
-      if (!latestByUser.has(item.userId) && item.riskLevel !== "LOW") {
-        latestByUser.set(item.userId, item);
+      const latestByUser = new Map<string, (typeof assessments)[number]>();
+      for (const item of assessments) {
+        const userId = String(item.userId);
+        if (!latestByUser.has(userId) && item.riskLevel !== "LOW") {
+          latestByUser.set(userId, item);
+        }
       }
-    }
 
-    rows = Array.from(latestByUser.values()).sort((a, b) => b.riskScore - a.riskScore);
+      rows = Array.from(latestByUser.values())
+        .sort((a, b) => b.riskScore - a.riskScore)
+        .map((item) => ({
+          id: String(item._id),
+          user: {
+            name: users.get(String(item.userId))?.name ?? "Unknown",
+            email: users.get(String(item.userId))?.email ?? "Unknown",
+          },
+          riskLevel: item.riskLevel,
+          riskScore: item.riskScore,
+          assessedAt: item.assessedAt,
+        }));
     } catch (error) {
       if (isDatabaseUnavailableError(error)) {
         dbOffline = true;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getAuthHeaders } from "@/lib/auth/client-token";
 
 export function ScheduleForms() {
   const [status, setStatus] = useState("");
@@ -16,7 +17,7 @@ export function ScheduleForms() {
     };
     const res = await fetch("/api/schedule/blocks", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
       body: JSON.stringify(payload),
     });
     setStatus(res.ok ? "Study block created." : "Failed to create study block.");
@@ -32,7 +33,7 @@ export function ScheduleForms() {
     };
     const res = await fetch("/api/obligations", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
       body: JSON.stringify(payload),
     });
     setStatus(res.ok ? "Obligation created." : "Failed to create obligation.");
@@ -45,7 +46,7 @@ export function ScheduleForms() {
     };
     const res = await fetch("/api/schedule/adherence", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
       body: JSON.stringify(payload),
     });
     setStatus(res.ok ? "Adherence logged and drift evaluated." : "Failed to log adherence.");

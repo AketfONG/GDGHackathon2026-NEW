@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { ensureDemoUser } from "@/lib/demo-user";
 import { backendDisabledResponse, isBackendDisabled } from "@/lib/backend-toggle";
+import { verifyRequestToken } from "@/lib/auth/verify-token";
+import { connectToDatabase } from "@/lib/mongodb";
+import { TimetableBlockModel } from "@/models/TimetableBlock";
 
 const blockSchema = z.object({
   title: z.string().min(2),
@@ -13,18 +14,22 @@ const blockSchema = z.object({
   nonSkippable: z.boolean().default(false),
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (isBackendDisabled()) return backendDisabledResponse();
-  const user = await ensureDemoUser();
-  const blocks = await db.timetableBlock.findMany({
-    where: { userId: user.id },
-    orderBy: [{ dayOfWeek: "asc" }, { startMinutes: "asc" }],
-  });
+  const auth = await verifyRequestToken(req);
+  if (!auth.ok) return auth.response;
+  await connectToDatabase();
+  const blocks = await TimetableBlockModel.find({ userId: auth.user._id })
+    .sort({ dayOfWeek: 1, startMinutes: 1 })
+    .lean();
   return NextResponse.json({ blocks });
 }
 
 export async function POST(req: NextRequest) {
   if (isBackendDisabled()) return backendDisabledResponse();
+  const auth = await verifyRequestToken(req);
+  if (!auth.ok) return auth.response;
+  await connectToDatabase();
   const body = await req.json();
   const parsed = blockSchema.safeParse(body);
   if (!parsed.success) {
@@ -34,13 +39,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "startMinutes must be less than endMinutes" }, { status: 400 });
   }
 
-  const user = await ensureDemoUser();
-  const block = await db.timetableBlock.create({
-    data: {
-      userId: user.id,
-      ...parsed.data,
-    },
-  });
+  const block = await TimetableBlockModel.create({ userId: auth.user._id, ...parsed.data });
 
-  return NextResponse.json({ block }, { status: 201 });
+  return NextResponse.json({ block: block.toObject() }, { status: 201 });
 }

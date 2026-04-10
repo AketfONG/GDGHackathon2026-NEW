@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { db } from "@/lib/db";
-import { ensureDemoUser } from "@/lib/demo-user";
 import { runInterventionCycle } from "@/lib/interventions/orchestrator";
 import { backendDisabledResponse, isBackendDisabled } from "@/lib/backend-toggle";
+import { connectToDatabase } from "@/lib/mongodb";
+import { QuizModel } from "@/models/Quiz";
+import { QuizAttemptModel } from "@/models/QuizAttempt";
+import { PassiveSignalEventModel } from "@/models/PassiveSignalEvent";
+import { verifyRequestToken } from "@/lib/auth/verify-token";
+import { Types } from "mongoose";
+
+type QuizQuestion = {
+  _id: Types.ObjectId;
+  correctIdx: number;
+};
 
 const submitAttemptSchema = z.object({
   durationSec: z.number().int().min(1),
@@ -22,7 +30,15 @@ export async function POST(
   ctx: { params: Promise<{ id: string }> },
 ) {
   if (isBackendDisabled()) return backendDisabledResponse();
+  const auth = await verifyRequestToken(req);
+  if (!auth.ok) return auth.response;
+  await connectToDatabase();
+
   const { id } = await ctx.params;
+  if (!Types.ObjectId.isValid(id)) {
+    return NextResponse.json({ error: "Invalid quiz id" }, { status: 400 });
+  }
+
   const body = await req.json();
   const parsed = submitAttemptSchema.safeParse(body);
 
@@ -30,16 +46,14 @@ export async function POST(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const user = await ensureDemoUser();
-  const quiz = await db.quiz.findUnique({
-    where: { id },
-    include: { questions: true },
-  });
+  const user = auth.user;
+  const quiz = await QuizModel.findById(id).lean();
   if (!quiz) {
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
 
-  const questionMap = new Map(quiz.questions.map((q) => [q.id, q]));
+  const questions = (quiz.questions ?? []) as QuizQuestion[];
+  const questionMap = new Map<string, QuizQuestion>(questions.map((q) => [String(q._id), q]));
   let correct = 0;
   const questionAttempts = parsed.data.answers.map((answer) => {
     const question = questionMap.get(answer.questionId);
@@ -53,29 +67,22 @@ export async function POST(
     };
   });
 
-  const score = quiz.questions.length === 0 ? 0 : correct / quiz.questions.length;
+  const score = questions.length === 0 ? 0 : correct / questions.length;
 
-  const attempt = await db.quizAttempt.create({
-    data: {
-      userId: user.id,
-      quizId: quiz.id,
-      score,
-      durationSec: parsed.data.durationSec,
-      questionAttempts: {
-        create: questionAttempts,
-      },
-    },
-    include: { questionAttempts: true },
+  const attempt = await QuizAttemptModel.create({
+    userId: user._id,
+    quizId: quiz._id,
+    score,
+    durationSec: parsed.data.durationSec,
+    questionAttempts,
   });
 
-  await db.passiveSignalEvent.create({
-    data: {
-      userId: user.id,
-      type: "QUIZ_SUBMIT",
-      meta: { quizId: quiz.id, score } as Prisma.InputJsonValue,
-    },
+  await PassiveSignalEventModel.create({
+    userId: user._id,
+    type: "QUIZ_SUBMIT",
+    meta: { quizId: String(quiz._id), score },
   });
 
-  const cycle = await runInterventionCycle(user.id);
-  return NextResponse.json({ attempt, assessment: cycle.assessment, intervention: cycle.intervention });
+  const cycle = await runInterventionCycle(String(user._id));
+  return NextResponse.json({ attempt: attempt.toObject(), assessment: cycle.assessment, intervention: cycle.intervention });
 }

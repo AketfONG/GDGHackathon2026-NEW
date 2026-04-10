@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TopNav } from "@/components/top-nav";
+import { GoogleAuthButton } from "@/components/google-auth-button";
 
 export default function Home() {
   return (
@@ -11,6 +12,9 @@ export default function Home() {
           <p className="mt-2 text-slate-600">
             Passive observation + autonomous micro-interventions to prevent cumulative minor setbacks.
           </p>
+          <div className="mt-3">
+            <GoogleAuthButton />
+          </div>
           <form action="/api/bootstrap" method="post" className="mt-4">
             <button className="rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-slate-800">
               Initialize Demo Data

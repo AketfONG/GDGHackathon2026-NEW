@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getAuthHeaders } from "@/lib/auth/client-token";
 
 type QuizQuestion = {
   id: string;
@@ -29,7 +30,7 @@ export function QuizAttemptForm({ quiz }: { quiz: QuizType }) {
 
     const res = await fetch(`/api/quizzes/${quiz.id}/attempt`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(await getAuthHeaders()) },
       body: JSON.stringify({
         durationSec: Math.max(1, Math.round((Date.now() - startedAt) / 1000)),
         answers,
