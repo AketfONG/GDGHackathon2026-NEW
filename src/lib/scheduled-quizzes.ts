@@ -1,4 +1,5 @@
 import type { CourseQuiz } from "@/components/quiz-list";
+import { addDaysToLocalYmd } from "@/lib/calendar-dates";
 
 /** YYYY-MM-DD in local timezone */
 export function addDaysLocalDateString(base: Date, days: number): string {
@@ -46,7 +47,13 @@ export type ScheduledStudyTask = {
   time: string;
   duration: string;
   description: string;
+  /** When set, links use this path instead of `/quizzes/[id]` (e.g. browse cold materials). */
+  externalQuizHref?: string;
 };
+
+export function taskQuizHref(task: ScheduledStudyTask): string {
+  return task.externalQuizHref ?? `/quizzes/${encodeURIComponent(task.id)}`;
+}
 
 /**
  * Hard-coded upcoming quizzes (relative to referenceDate) for dashboard + schedule.
@@ -119,7 +126,7 @@ export function getScheduledStudyTasks(referenceDate: Date = new Date()): Schedu
   const dApr18 = april18DateString(referenceDate);
   const dApr20 = april20DateString(referenceDate);
 
-  return [
+  const base: ScheduledStudyTask[] = [
     {
       id: "scheduled-math2411-hot",
       date: d2,
@@ -188,6 +195,28 @@ export function getScheduledStudyTasks(referenceDate: Date = new Date()): Schedu
       description: "Monopoly review — due Apr 20. Listed under Review on the Quizzes page.",
     },
   ];
+
+  /** Cold prep one week before each built-in hot quiz (same pairing as upload cold → hot +7 days). */
+  const coldPrep: ScheduledStudyTask[] = [];
+  for (const t of base) {
+    if (t.type !== "hot_quiz") continue;
+    const coldDate = addDaysToLocalYmd(t.date, -7);
+    coldPrep.push({
+      id: `${t.id}-cold-prep`,
+      date: coldDate,
+      title: t.title.replace(" — Hot quiz", " — Cold prep").replace("Hot quiz", "Cold prep"),
+      type: "cold_quiz",
+      topic: `${t.topic} (1 week before hot)`,
+      priority: "medium",
+      time: `Prep ${new Date(coldDate + "T12:00:00").toLocaleDateString()}`,
+      duration: "30–45 min",
+      description:
+        "Cold recall before the hot quiz — review notes or upload materials, then take your cold test on the Quizzes page.",
+      externalQuizHref: "/quizzes",
+    });
+  }
+
+  return [...base, ...coldPrep];
 }
 
 /** Review-quiz topics due on or after `referenceDate`’s calendar day (for “unclear concepts” / focus areas). */
@@ -196,12 +225,21 @@ export function getUpcomingReviewQuizConcepts(
 ): { quizId: string; course: string; concept: string; dueDate: string }[] {
   const today = localDateString(referenceDate);
   return getScheduledCourseQuizzes(referenceDate)
-    .filter((q) => q.testType === "review" && q.dueDate >= today)
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.course.localeCompare(b.course))
+    .filter(
+      (q) =>
+        q.testType === "review" &&
+        typeof q.dueDate === "string" &&
+        q.dueDate >= today,
+    )
+    .sort((a, b) => {
+      const da = a.dueDate ?? "";
+      const db = b.dueDate ?? "";
+      return da.localeCompare(db) || a.course.localeCompare(b.course);
+    })
     .map((q) => ({
       quizId: q.id,
       course: q.course,
       concept: q.subtopic ?? q.course,
-      dueDate: q.dueDate!,
+      dueDate: q.dueDate as string,
     }));
 }

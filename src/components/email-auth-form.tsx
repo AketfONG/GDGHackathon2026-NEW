@@ -24,16 +24,10 @@ export function EmailAuthForm() {
   const [message, setMessage] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  if (!firebaseAuth) {
-    return (
-      <p className="text-sm text-slate-600">
-        Firebase client keys are not set yet. Add them in <code>.env.local</code>.
-      </p>
-    );
-  }
-
   useEffect(() => {
-    const unsub = onAuthStateChanged(firebaseAuth, (user) => {
+    const auth = firebaseAuth;
+    if (!auth) return;
+    const unsub = onAuthStateChanged(auth, (user) => {
       setIsLoggedIn(Boolean(user));
       if (!user) {
         // Clear stale form state after logout.
@@ -51,17 +45,27 @@ export function EmailAuthForm() {
     router.replace("/");
   }, [isLoggedIn, pathname, router]);
 
+  if (!firebaseAuth) {
+    return (
+      <p className="text-sm text-slate-600">
+        Firebase client keys are not set yet. Add them in <code>.env.local</code>.
+      </p>
+    );
+  }
+
+  const auth = firebaseAuth;
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setMessage("");
     try {
       if (mode === "signup") {
-        const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        const credential = await createUserWithEmailAndPassword(auth, email, password);
         await syncSessionCookie(credential.user);
         router.replace("/");
       } else {
-        const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+        const credential = await signInWithEmailAndPassword(auth, email, password);
         await syncSessionCookie(credential.user);
         router.replace("/");
       }
@@ -107,7 +111,7 @@ export function EmailAuthForm() {
     setBusy(true);
     setMessage("");
     try {
-      await signOut(firebaseAuth);
+      await signOut(auth);
       await syncSessionCookie(null);
       setMessage("Logged out.");
       router.refresh();

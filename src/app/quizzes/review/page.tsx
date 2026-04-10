@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { TopNav } from "@/components/top-nav";
 import { getUiQuizById, uiOnlyQuizzes } from "@/lib/ui-quizzes";
@@ -12,7 +12,7 @@ type StoredReview = {
   submittedAt: number;
 };
 
-export default function QuizReviewPage() {
+function QuizReviewPageInner() {
   const searchParams = useSearchParams();
   const quizId = searchParams.get("quizId") ?? uiOnlyQuizzes[0]?.id;
   const quiz = quizId ? getUiQuizById(quizId) : undefined;
@@ -109,5 +109,22 @@ export default function QuizReviewPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function QuizReviewPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50">
+          <TopNav />
+          <main className="mx-auto w-full max-w-6xl px-4 py-8">
+            <p className="text-sm text-slate-600">Loading review…</p>
+          </main>
+        </div>
+      }
+    >
+      <QuizReviewPageInner />
+    </Suspense>
   );
 }
