@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // pdf-parse / pdfjs-dist run in Node; avoid bundling issues in API routes
+  serverExternalPackages: ["pdf-parse", "pdfjs-dist", "mammoth", "jszip"],
 };
 
 export default nextConfig;

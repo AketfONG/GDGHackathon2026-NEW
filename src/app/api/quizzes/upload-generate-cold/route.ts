@@ -75,11 +75,34 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const parsed = await parseDocumentWithDocling(buffer, file.name);
 
+    const textBody = parsed.markdown.replace(/^#\s*[^\n]+\n+/, "").trim();
+    const bracketError =
+      textBody.startsWith("[No selectable text found") ||
+      textBody.startsWith("[Document parse failed:") ||
+      textBody.startsWith("[Legacy .doc") ||
+      textBody.startsWith("[Legacy .ppt");
+    if (bracketError) {
+      const fromBracket =
+        textBody.startsWith("[") && textBody.endsWith("]")
+          ? textBody.slice(1, -1)
+          : textBody;
+      return NextResponse.json(
+        {
+          success: false,
+          error: textBody.startsWith("[Document parse failed:")
+            ? "Could not read this file. For Word/PowerPoint use .docx/.pptx; or export PDF; or upload .txt / .md."
+            : fromBracket,
+        },
+        { status: 422 }
+      );
+    }
+
     const questions = await generateMCQsFromContent(
       parsed.markdown,
       course,
       10,
-      replicateConfig as { apiToken: string; model?: string }
+      replicateConfig as { apiToken: string; model?: string },
+      { sourceFileName: file.name }
     );
 
     if (!questions.length) {
@@ -95,13 +118,24 @@ export async function POST(req: NextRequest) {
       if (correctIdx < 0 || correctIdx >= options.length) {
         correctIdx = 0;
       }
+      const prompt = String(q.question ?? "").trim();
       return {
-        prompt: q.question,
+        prompt,
         options: options.length >= 2 ? options : ["A", "B", "C", "D"],
         correctIdx,
         explanation: q.explanation ?? "",
       };
-    });
+    }).filter((row) => row.prompt.length > 0);
+
+    if (!mappedQuestions.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "No valid questions were generated (every item was missing question text). Try again.",
+        },
+        { status: 422 }
+      );
+    }
 
     await connectToDatabase();
 
