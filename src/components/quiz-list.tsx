@@ -5,6 +5,8 @@ import { isMongoObjectIdString } from "@/lib/mongo-object-id";
 export interface CourseQuiz {
   id: string;
   course: string;
+  /** Shown after the course on the first line, e.g. "MATH2411 · Probability". */
+  subtopic?: string;
   week?: number;
   testType: "cold" | "hot" | "review";
   topic?: string;
@@ -65,6 +67,10 @@ function quizHref(quiz: CourseQuiz): string {
   return quiz.externalHref ?? `/quizzes/${encodeURIComponent(quiz.id)}`;
 }
 
+function courseHeading(quiz: CourseQuiz): string {
+  return quiz.subtopic ? `${quiz.course} · ${quiz.subtopic}` : quiz.course;
+}
+
 function sortCold(a: CourseQuiz, b: CourseQuiz): number {
   const byCourse = a.course.localeCompare(b.course);
   if (byCourse !== 0) return byCourse;
@@ -102,7 +108,7 @@ function ColdHotQuizCard({ quiz }: { quiz: CourseQuiz }) {
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-800">{quiz.course}</p>
+          <p className="text-sm font-semibold text-slate-800">{courseHeading(quiz)}</p>
           <div className="mt-1 flex flex-wrap items-center gap-3">
             <span
               className={`inline-block rounded px-2 py-1 text-xs font-semibold ${getTestTypeBadge(quiz.testType)}`}
@@ -189,7 +195,7 @@ function ReviewQuizCard({ quiz }: { quiz: CourseQuiz }) {
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-800">{quiz.course}</p>
+          <p className="text-sm font-semibold text-slate-800">{courseHeading(quiz)}</p>
           <div className="mt-1 flex items-center gap-2">
             <span
               className={`inline-block rounded px-2 py-1 text-xs font-semibold ${getTestTypeBadge(quiz.testType)}`}
@@ -203,7 +209,7 @@ function ReviewQuizCard({ quiz }: { quiz: CourseQuiz }) {
               Due: {new Date(quiz.dueDate).toLocaleDateString()}
             </p>
           ) : null}
-          {quiz.topic ? (
+          {quiz.topic && !quiz.subtopic ? (
             <p className="mt-1 text-sm text-slate-600">Topic: {quiz.topic}</p>
           ) : null}
         </div>

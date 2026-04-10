@@ -187,10 +187,7 @@ export default function UploadMaterialsPage() {
           <h1 className="text-3xl font-semibold text-slate-900">Upload Course Materials</h1>
           <p className="mt-2 text-slate-600">
             Upload a file for the selected course and week. A <strong>cold test</strong> is generated
-            automatically from your file(s). Multiple files in one upload become{" "}
-            <strong>one</strong> cold test with questions balanced across them (requires{" "}
-            <code className="rounded bg-slate-200 px-1 text-sm">REPLICATE_API_TOKEN</code> in{" "}
-            <code className="rounded bg-slate-200 px-1 text-sm">.env.local</code> and MongoDB).
+            automatically from your file(s).
           </p>
         </section>
 

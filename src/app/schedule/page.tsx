@@ -1,7 +1,7 @@
 "use client";
 
 import { TopNav } from "@/components/top-nav";
-import { getScheduledStudyTasks } from "@/lib/scheduled-quizzes";
+import { getScheduledCourseQuizzes, getScheduledStudyTasks } from "@/lib/scheduled-quizzes";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -60,7 +60,17 @@ export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<StudyTask | null>(null);
 
-  const studyPlan = useMemo(() => getScheduledStudyTasks(), []);
+  const studyPlan = useMemo(() => {
+    const tasks = getScheduledStudyTasks();
+    const quizById = new Map(getScheduledCourseQuizzes().map((q) => [q.id, q]));
+    return tasks.map((t) => {
+      const cq = quizById.get(t.id);
+      if (t.type === "review_quiz" && cq?.testType === "review") {
+        return { ...t, unclearConcepts: [cq.subtopic] };
+      }
+      return t;
+    });
+  }, []);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -118,8 +128,8 @@ export default function SchedulePage() {
         <section className="mb-8">
           <h1 className="text-3xl font-semibold text-slate-900">Study Schedule</h1>
           <p className="mt-2 text-slate-600">
-            Click a date to view tasks for that day. Upcoming hot and review quizzes for MATH2411, TEMG3950, and
-            HUMA2104 are pre-filled with due dates relative to today.
+            Click a date to view tasks for that day. Hot and review quizzes for several courses are pre-filled; review
+            tasks list focus topics tied to each review quiz.
           </p>
         </section>
 
