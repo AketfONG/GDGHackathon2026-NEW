@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const links = [
   { href: "/", label: "Home" },
+  { href: "/login", label: "Login" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/quizzes", label: "Quizzes" },
   { href: "/schedule", label: "Schedule" },
@@ -11,6 +15,14 @@ const links = [
 ];
 
 export function TopNav() {
+  const pathname = usePathname();
+  const visibleLinks =
+    pathname === "/login"
+      ? []
+      : links.filter((item) =>
+          item.href === "/login" ? pathname !== "/dashboard" : true,
+        );
+
   return (
     <header className="border-b border-slate-200 bg-white">
       <nav className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -23,7 +35,7 @@ export function TopNav() {
           </span>
         </Link>
         <div className="flex flex-wrap gap-2">
-        {links.map((item) => (
+        {visibleLinks.map((item) => (
           <Link
             key={item.href}
             href={item.href}
