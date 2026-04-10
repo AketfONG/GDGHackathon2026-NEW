@@ -2,23 +2,53 @@
 
 import { useState } from "react";
 
-export function StudyCalendar() {
-  const [currentDate, setCurrentDate] = useState(new Date());
+interface StudyTask {
+  id: string;
+  date: string;
+  title: string;
+  type: "hot_quiz" | "cold_quiz" | "review_quiz" | "study_topic";
+  topic: string;
+  priority: "high" | "medium" | "low";
+  time: string;
+  duration: string;
+}
 
-  // Mock study dates for demo
-  const MOCK_STUDY_DATES = new Set([5, 8, 12, 15, 19, 22, 26, 29]);
+interface StudyCalendarProps {
+  tasks?: StudyTask[];
+  onDateSelect?: (dateStr: string | null) => void;
+  selectedDate?: string | null;
+}
+
+export function StudyCalendar({ tasks = [], onDateSelect, selectedDate }: StudyCalendarProps) {
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
 
   const monthName = currentDate.toLocaleString("default", { month: "long", year: "numeric" });
 
+  // Get task dates for styling
+  const taskDates = new Set(
+    tasks.map((task) => {
+      const date = new Date(task.date);
+      return date.getDate();
+    })
+  );
+
   const handlePrevMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
+    onDateSelect?.(null);
   };
 
   const handleNextMonth = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
+    onDateSelect?.(null);
+  };
+
+  const handleDateClick = (day: number | null) => {
+    if (day === null) return;
+    const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    onDateSelect?.(selectedDate === dateStr ? null : dateStr);
   };
 
   const days = [];
@@ -54,20 +84,29 @@ export function StudyCalendar() {
       </div>
 
       <div className="grid grid-cols-7 gap-1">
-        {days.map((day, index) => (
-          <div
-            key={index}
-            className={`aspect-square rounded text-sm font-semibold ${
-              day === null
-                ? ""
-                : MOCK_STUDY_DATES.has(day)
-                  ? "bg-blue-600 text-white"
-                  : "bg-slate-100 text-slate-900 hover:bg-slate-200"
-            }`}
-          >
-            {day}
-          </div>
-        ))}
+        {days.map((day, index) => {
+          const dateStr = day ? `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` : null;
+          const isSelected = selectedDate === dateStr;
+          const hasTask = day && taskDates.has(day);
+
+          return (
+            <button
+              key={index}
+              onClick={() => handleDateClick(day)}
+              className={`aspect-square rounded text-sm font-semibold transition-all ${
+                day === null
+                  ? ""
+                  : isSelected
+                    ? "bg-blue-700 text-white ring-2 ring-blue-400"
+                    : hasTask
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : "bg-slate-100 text-slate-900 hover:bg-slate-200"
+              }`}
+            >
+              {day}
+            </button>
+          );
+        })}
       </div>
 
       <div className="mt-4 space-y-2 text-sm">
