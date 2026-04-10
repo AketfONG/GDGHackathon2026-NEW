@@ -26,8 +26,6 @@ export default async function QuizzesPage() {
       const presets = isPresetDemoContentEnabled(getDemoModeFromCookieStore(cookieStore));
       const uploaded = bundles.map((b) => b.courseQuiz);
       const scheduled = presets ? getScheduledCourseQuizzes() : [];
-      coldQuizzes = [...scheduled, ...uploaded];
-      const scheduled = getScheduledCourseQuizzes();
       const dynamicTasks = await loadDynamicScheduleTasks();
       const hotAttempts = await loadHotFollowupAttempts();
       
