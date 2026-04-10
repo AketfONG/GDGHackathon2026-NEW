@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { FirebaseError } from "firebase/app";
 import {
   createUserWithEmailAndPassword,
@@ -16,6 +16,7 @@ type AuthMode = "login" | "signup";
 
 export function EmailAuthForm() {
   const router = useRouter();
+  const pathname = usePathname();
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,6 +45,12 @@ export function EmailAuthForm() {
     return () => unsub();
   }, []);
 
+  // Already signed in (e.g. opened /login in a new tab) → home
+  useEffect(() => {
+    if (!isLoggedIn || pathname !== "/login") return;
+    router.replace("/");
+  }, [isLoggedIn, pathname, router]);
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
@@ -52,13 +59,12 @@ export function EmailAuthForm() {
       if (mode === "signup") {
         const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
         await syncSessionCookie(credential.user);
-        setMessage("Account created. You are now logged in.");
+        router.replace("/");
       } else {
         const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
         await syncSessionCookie(credential.user);
-        setMessage("Logged in successfully.");
+        router.replace("/");
       }
-      router.refresh();
     } catch (error) {
       if (error instanceof FirebaseError) {
         switch (error.code) {

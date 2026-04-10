@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { firebaseAuth, googleProvider } from "@/lib/firebase/client";
 import { FirebaseError } from "firebase/app";
 import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
@@ -9,6 +9,7 @@ import { syncSessionCookie } from "@/lib/auth/session-sync";
 
 export function GoogleAuthButton() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
   const [busy, setBusy] = useState(false);
   const [errorText, setErrorText] = useState("");
@@ -28,7 +29,11 @@ export function GoogleAuthButton() {
     try {
       const result = await signInWithPopup(firebaseAuth, googleProvider);
       await syncSessionCookie(result.user);
-      router.refresh();
+      if (pathname === "/login") {
+        router.replace("/");
+      } else {
+        router.refresh();
+      }
     } catch (error) {
       if (error instanceof FirebaseError && error.code === "auth/configuration-not-found") {
         setErrorText("Google sign-in is not enabled in Firebase Auth settings.");
