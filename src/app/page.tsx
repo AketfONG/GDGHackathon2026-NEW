@@ -219,7 +219,7 @@ export default function Home() {
             Track your progress, identify unclear concepts, and review challenging topics.
           </p>
           <div className="mt-3">
-            <GoogleAuthButton />
+            <GoogleAuthButton loginOnly />
           </div>
         </section>
 
@@ -272,42 +272,6 @@ export default function Home() {
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Content - Right (spans 1 column) */}
-          <div className="space-y-6 lg:col-span-1">
-            {/* Quiz To-Do List by Course */}
-            {MOCK_QUIZZES_BY_COURSE.map((courseGroup) => (
-              <div key={courseGroup.course} className="rounded-lg border border-slate-200 bg-white p-6">
-                <h2 className="mb-4 text-lg font-semibold text-slate-900">{courseGroup.course} - Quizzes</h2>
-                <QuizTodoList quizzes={courseGroup.quizzes} loading={false} />
-              </div>
-            ))}
-
-            {/* Unclear Concepts Preview */}
-            <div className="rounded-lg border border-slate-200 bg-white p-6">
-              <h2 className="mb-4 text-lg font-semibold text-slate-900">Unclear Concepts</h2>
-              <div className="space-y-3">
-                {MOCK_UNCLEAR_CONCEPTS.map((concept, idx) => (
-                  <div key={idx} className="rounded-lg border border-slate-200 bg-white p-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-slate-900">{concept.topic}</p>
-                        <p className="text-xs text-slate-600 mt-1">{concept.course}</p>
-                      </div>
-                    </div>
-                    <ul className="mt-2 space-y-1 text-sm text-slate-700">
-                      {concept.unclearPoints.map((point, pointIdx) => (
-                        <li key={pointIdx} className="flex gap-2">
-                          <span>•</span>
-                          <span>{point}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </div>
 
             {/* Review Tests by Course */}
             <div className="rounded-lg border border-slate-200 bg-white p-6">
@@ -347,42 +311,44 @@ export default function Home() {
               </Link>
             </div>
           </div>
+
+          {/* Content - Right (spans 1 column) */}
+          <div className="space-y-6 lg:col-span-1">
+            {/* Quiz To-Do List by Course */}
+            {MOCK_QUIZZES_BY_COURSE.map((courseGroup) => (
+              <div key={courseGroup.course} className="rounded-lg border border-slate-200 bg-white p-6">
+                <h2 className="mb-4 text-lg font-semibold text-slate-900">{courseGroup.course} - Quizzes</h2>
+                <QuizTodoList quizzes={courseGroup.quizzes} loading={false} />
+              </div>
+            ))}
+
+            {/* Unclear Concepts Preview */}
+            <div className="rounded-lg border border-slate-200 bg-white p-6">
+              <h2 className="mb-4 text-lg font-semibold text-slate-900">Unclear Concepts</h2>
+              <div className="space-y-3">
+                {MOCK_UNCLEAR_CONCEPTS.map((concept, idx) => (
+                  <div key={idx} className="rounded-lg border border-slate-200 bg-white p-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-slate-900">{concept.topic}</p>
+                        <p className="text-xs text-slate-600 mt-1">{concept.course}</p>
+                      </div>
+                    </div>
+                    <ul className="mt-2 space-y-1 text-sm text-slate-700">
+                      {concept.unclearPoints.map((point, pointIdx) => (
+                        <li key={pointIdx} className="flex gap-2">
+                          <span>•</span>
+                          <span>{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Quick Links */}
-        <section className="mt-8">
-          <h2 className="mb-4 text-lg font-semibold text-slate-900">Quick Access</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Link
-              className="rounded-lg border border-slate-200 bg-white p-4 text-center hover:bg-blue-50 hover:border-blue-300"
-              href="/dashboard"
-            >
-              <div className="font-semibold text-slate-900">View Dashboard</div>
-              <div className="mt-1 text-sm text-slate-600">Track your performance</div>
-            </Link>
-            <Link
-              className="rounded-lg border border-slate-200 bg-white p-4 text-center hover:bg-blue-50 hover:border-blue-300"
-              href="/quizzes"
-            >
-              <div className="font-semibold text-slate-900">All Quizzes</div>
-              <div className="mt-1 text-sm text-slate-600">Browse quiz library</div>
-            </Link>
-            <Link
-              className="rounded-lg border border-slate-200 bg-white p-4 text-center hover:bg-blue-50 hover:border-blue-300"
-              href="/schedule"
-            >
-              <div className="font-semibold text-slate-900">My Schedule</div>
-              <div className="mt-1 text-sm text-slate-600">Manage your timetable</div>
-            </Link>
-            <Link
-              className="rounded-lg border border-slate-200 bg-white p-4 text-center hover:bg-blue-50 hover:border-blue-300"
-              href="/upload"
-            >
-              <div className="font-semibold text-slate-900">Upload Materials</div>
-              <div className="mt-1 text-sm text-slate-600">Add your courses</div>
-            </Link>
-          </div>
-        </section>
       </main>
     </div>
   );
