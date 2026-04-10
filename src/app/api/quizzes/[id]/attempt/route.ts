@@ -9,6 +9,7 @@ import { PassiveSignalEventModel } from "@/models/PassiveSignalEvent";
 import { verifyRequestToken } from "@/lib/auth/verify-token";
 import { QUIZ_CLIENT_SCOPE_COOKIE } from "@/lib/quiz-client-scope";
 import { viewerCanAccessQuiz, isSharedDemoUser } from "@/lib/quiz-access";
+import { addDaysFromDateToLocalYmd, localYmdToStartOfDay } from "@/lib/calendar-dates";
 import { Types } from "mongoose";
 
 type QuizQuestion = {
@@ -54,13 +55,19 @@ export async function POST(
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
   const q = quiz as {
+    _id: Types.ObjectId;
     testType?: string;
     createdFromUpload?: boolean;
     course?: string;
     week?: string;
     ownerUserId?: unknown;
     quizClientScope?: string | null;
+    pendingHotFollowUp?: {
+      dueDate?: string;
+      sourceAttemptId?: Types.ObjectId;
+    };
   };
+  const prevPending = q.pendingHotFollowUp;
   if (
     q.testType !== "cold" ||
     q.createdFromUpload !== true ||
@@ -103,6 +110,65 @@ export async function POST(
     durationSec: parsed.data.durationSec,
     questionAttempts,
   });
+
+  const attemptId = attempt._id;
+  if (!attemptId) {
+    return NextResponse.json({ error: "Could not save attempt" }, { status: 500 });
+  }
+
+  // Hot follow-up is scheduled only here (after the user completes a cold quiz), never on quiz creation.
+  const submittedAt = attempt.submittedAt ?? new Date();
+  const nextDueDate = addDaysFromDateToLocalYmd(submittedAt, 7);
+
+  const followUpSourceId = prevPending?.sourceAttemptId;
+  const isNewAttemptAfterSource =
+    Boolean(followUpSourceId) && String(attemptId) !== String(followUpSourceId);
+
+  let sourceSubmittedAt = submittedAt;
+  if (followUpSourceId) {
+    const src = await QuizAttemptModel.findById(followUpSourceId).select({ submittedAt: 1 }).lean();
+    if (src?.submittedAt) sourceSubmittedAt = new Date(src.submittedAt);
+  }
+
+  const msAfterSource = submittedAt.getTime() - sourceSubmittedAt.getTime();
+  const fourDaysMs = 4 * 24 * 60 * 60 * 1000;
+
+  const updateOpts = { runValidators: false as const };
+
+  if (isNewAttemptAfterSource && prevPending?.dueDate) {
+    const hotWindowStart = localYmdToStartOfDay(prevPending.dueDate);
+    const onOrAfterScheduledHotDay = submittedAt.getTime() >= hotWindowStart.getTime();
+    const likelyHotRetake = onOrAfterScheduledHotDay || msAfterSource >= fourDaysMs;
+    if (likelyHotRetake) {
+      await QuizModel.updateOne({ _id: q._id }, { $unset: { pendingHotFollowUp: 1 } }, updateOpts);
+    } else {
+      await QuizModel.updateOne(
+        { _id: q._id },
+        {
+          $set: {
+            pendingHotFollowUp: {
+              dueDate: nextDueDate,
+              sourceAttemptId: attemptId,
+            },
+          },
+        },
+        updateOpts,
+      );
+    }
+  } else {
+    await QuizModel.updateOne(
+      { _id: q._id },
+      {
+        $set: {
+          pendingHotFollowUp: {
+            dueDate: nextDueDate,
+            sourceAttemptId: attemptId,
+          },
+        },
+      },
+      updateOpts,
+    );
+  }
 
   await PassiveSignalEventModel.create({
     userId: user._id,

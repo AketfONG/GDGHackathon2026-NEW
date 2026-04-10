@@ -6,10 +6,11 @@ import { QuizTodoList, type ColdTestTodo } from "@/components/quiz-todo-list";
 import { StudyCalendar } from "@/components/study-calendar";
 import { GoogleAuthButton } from "@/components/google-auth-button";
 import {
-  getScheduledStudyTasks,
   getUpcomingReviewQuizConcepts,
+  taskQuizHref,
   type ScheduledStudyTask,
 } from "@/lib/scheduled-quizzes";
+import { useUserSettings } from "@/hooks/use-user-settings";
 import { useMemo, useState } from "react";
 
 function taskTypeStyles(type: ScheduledStudyTask["type"]) {
@@ -41,11 +42,12 @@ function taskTypeLabel(type: ScheduledStudyTask["type"]) {
 type HomeDashboardProps = {
   coldTests: ColdTestTodo[];
   coldTestsLoadFailed: boolean;
+  scheduleTasks: ScheduledStudyTask[];
 };
 
-export function HomeDashboard({ coldTests, coldTestsLoadFailed }: HomeDashboardProps) {
+export function HomeDashboard({ coldTests, coldTestsLoadFailed, scheduleTasks }: HomeDashboardProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const scheduleTasks = useMemo(() => getScheduledStudyTasks(), []);
+  const [settings] = useUserSettings();
   const reviewFocusConcepts = useMemo(() => getUpcomingReviewQuizConcepts(), []);
 
   return (
@@ -81,6 +83,7 @@ export function HomeDashboard({ coldTests, coldTestsLoadFailed }: HomeDashboardP
                   tasks={scheduleTasks}
                   onDateSelect={setSelectedDate}
                   selectedDate={selectedDate}
+                  weekStartsOn={settings.calendarWeekStartsOn}
                   compact
                 />
               </div>
@@ -183,7 +186,7 @@ export function HomeDashboard({ coldTests, coldTestsLoadFailed }: HomeDashboardP
                         <ul className="space-y-2 pb-1">
                           {dayTasks.map((task) => (
                             <li
-                              key={task.id}
+                              key={`${task.date}-${task.type}-${task.id}`}
                               className="rounded-md border border-slate-200 bg-slate-50 p-2.5 text-sm"
                             >
                               <div className="flex flex-wrap items-center gap-1.5">
@@ -197,7 +200,7 @@ export function HomeDashboard({ coldTests, coldTestsLoadFailed }: HomeDashboardP
                               <p className="mt-1 text-slate-800">{task.title}</p>
                               <p className="mt-0.5 text-xs text-slate-600">{task.time}</p>
                               <Link
-                                href={`/quizzes/${encodeURIComponent(task.id)}`}
+                                href={taskQuizHref(task)}
                                 className="mt-1.5 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700"
                               >
                                 Open quiz →

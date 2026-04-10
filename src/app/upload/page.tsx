@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { TopNav } from "@/components/top-nav";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useUserSettings } from "@/hooks/use-user-settings";
 
 const MOCK_COURSES = [
   { id: "econ2103", name: "ECON2103" },
@@ -47,6 +48,7 @@ const getFileIcon = (filename: string) => {
 };
 
 export default function UploadMaterialsPage() {
+  const [settings, patchSettings] = useUserSettings();
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState(buildEmptyUploads);
@@ -58,6 +60,18 @@ export default function UploadMaterialsPage() {
 
   const selectedCourseData = MOCK_COURSES.find((c) => c.id === selectedCourse);
   const selectedWeekData = MOCK_WEEKS.find((w) => w.id === selectedWeek);
+
+  useEffect(() => {
+    if (!settings.rememberUploadSelections) return;
+    const c = settings.uploadLastCourseId;
+    const w = settings.uploadLastWeekId;
+    if (c && MOCK_COURSES.some((x) => x.id === c)) {
+      setSelectedCourse(c);
+    }
+    if (w && MOCK_WEEKS.some((x) => x.id === w)) {
+      setSelectedWeek(w);
+    }
+  }, [settings.rememberUploadSelections, settings.uploadLastCourseId, settings.uploadLastWeekId]);
 
   async function runColdGenerationForFiles(files: FileList | File[]) {
     const list = Array.from(files);
@@ -218,7 +232,12 @@ export default function UploadMaterialsPage() {
               <button
                 key={course.id}
                 type="button"
-                onClick={() => setSelectedCourse(course.id)}
+                onClick={() => {
+                  setSelectedCourse(course.id);
+                  if (settings.rememberUploadSelections) {
+                    patchSettings({ uploadLastCourseId: course.id });
+                  }
+                }}
                 className={`rounded-lg border-2 p-4 text-left transition-all ${
                   selectedCourse === course.id
                     ? "border-blue-500 bg-blue-50"
@@ -239,7 +258,12 @@ export default function UploadMaterialsPage() {
                 <button
                   key={week.id}
                   type="button"
-                  onClick={() => setSelectedWeek(week.id)}
+                  onClick={() => {
+                    setSelectedWeek(week.id);
+                    if (settings.rememberUploadSelections) {
+                      patchSettings({ uploadLastWeekId: week.id });
+                    }
+                  }}
                   className={`rounded-lg border-2 p-4 text-left transition-all ${
                     selectedWeek === week.id
                       ? "border-green-500 bg-green-50"
