@@ -7,7 +7,12 @@ import { FirebaseError } from "firebase/app";
 import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
 import { syncSessionCookie } from "@/lib/auth/session-sync";
 
-export function GoogleAuthButton() {
+type Props = {
+  /** When true, signed-in users see nothing (e.g. hide logout on home; use nav to sign out). */
+  loginOnly?: boolean;
+};
+
+export function GoogleAuthButton({ loginOnly = false }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
@@ -69,6 +74,9 @@ export function GoogleAuthButton() {
   }
 
   if (user) {
+    if (loginOnly) {
+      return errorText ? <p className="text-xs text-rose-600">{errorText}</p> : null;
+    }
     return (
       <div className="flex flex-wrap items-center gap-2">
         <button
