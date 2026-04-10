@@ -1,6 +1,9 @@
+import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import { QuizModel } from "@/models/Quiz";
 import { isBackendDisabled } from "@/lib/backend-toggle";
+import { verifyRequestToken } from "@/lib/auth/verify-token";
+import { QUIZ_CLIENT_SCOPE_COOKIE } from "@/lib/quiz-client-scope";
 
 export const maxDuration = 60;
 
@@ -18,12 +21,27 @@ interface SaveQuizRequest {
   testType: "cold" | "hot" | "review";
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     if (isBackendDisabled()) {
-      return Response.json(
+      return NextResponse.json(
         { success: false, error: "Backend is disabled" },
         { status: 503 }
+      );
+    }
+
+    const auth = await verifyRequestToken(request);
+    if (!auth.ok) return auth.response;
+
+    const quizScope = request.cookies.get(QUIZ_CLIENT_SCOPE_COOKIE)?.value?.trim();
+    if (!quizScope) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Open Upload or Quizzes in this browser first, then try again (session cookie missing).",
+        },
+        { status: 400 }
       );
     }
 
@@ -31,7 +49,7 @@ export async function POST(request: Request) {
     const { course, week, questions, testType } = body;
 
     if (!course || !week || !questions || !testType) {
-      return Response.json(
+      return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 }
       );
@@ -59,7 +77,7 @@ export async function POST(request: Request) {
       .filter((row) => row.prompt.length > 0);
 
     if (!mappedQuestions.length) {
-      return Response.json(
+      return NextResponse.json(
         {
           success: false,
           error: "No valid questions: each item needs non-empty question text.",
@@ -76,10 +94,13 @@ export async function POST(request: Request) {
       course,
       week,
       testType,
+      createdFromUpload: testType === "cold",
+      ownerUserId: auth.user._id,
+      quizClientScope: quizScope,
       questions: mappedQuestions,
     });
 
-    return Response.json({
+    return NextResponse.json({
       success: true,
       message: "Quiz saved successfully",
       quiz: {
@@ -93,7 +114,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("Error saving quiz:", error);
-    return Response.json(
+    return NextResponse.json(
       {
         success: false,
         error: error instanceof Error ? error.message : "Failed to save quiz",

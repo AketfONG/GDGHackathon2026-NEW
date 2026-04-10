@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { UiQuiz } from "@/lib/ui-quizzes";
+import { getAuthHeaders } from "@/lib/auth/client-token";
 
 const QUESTIONS_PER_QUIZ = 10;
 
@@ -11,14 +13,21 @@ function clampIndex(idx: number, len: number): number {
 }
 
 export function QuizAttemptForm({ quiz }: { quiz: UiQuiz }) {
+  const router = useRouter();
+  const startedAtRef = useRef<number>(Date.now());
   const [phase, setPhase] = useState<"taking" | "results">("taking");
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [scoreSummary, setScoreSummary] = useState<{
     correct: number;
     total: number;
     percent: number;
   } | null>(null);
+
+  useEffect(() => {
+    startedAtRef.current = Date.now();
+  }, [quiz.id]);
 
   const visibleQuestions = quiz.questions.slice(0, QUESTIONS_PER_QUIZ);
   const answeredCount = visibleQuestions.filter((q) => selectedAnswers[q.id] !== undefined).length;
@@ -27,16 +36,62 @@ export function QuizAttemptForm({ quiz }: { quiz: UiQuiz }) {
 
   async function submitAttempt() {
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    const correct = visibleQuestions.reduce((acc, q) => {
-      const selected = selectedAnswers[q.id];
-      return acc + (selected === q.correctIdx ? 1 : 0);
-    }, 0);
-    const total = visibleQuestions.length;
-    const percent = Math.round((correct / Math.max(1, total)) * 100);
-    setScoreSummary({ correct, total, percent });
-    setPhase("results");
-    setIsSubmitting(false);
+    setSubmitError(null);
+    const durationSec = Math.max(
+      1,
+      Math.round((Date.now() - startedAtRef.current) / 1000),
+    );
+    const answers = visibleQuestions.map((q) => ({
+      questionId: q.id,
+      selectedIdx: selectedAnswers[q.id] ?? 0,
+      responseMs: 0,
+    }));
+
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch(`/api/quizzes/${encodeURIComponent(quiz.id)}/attempt`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...headers,
+        },
+        body: JSON.stringify({ durationSec, answers }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        attempt?: {
+          score: number;
+          questionAttempts?: { isCorrect: boolean }[];
+        };
+      };
+      if (!res.ok) {
+        setSubmitError(data.error || res.statusText || "Could not save your attempt");
+        setIsSubmitting(false);
+        return;
+      }
+      const att = data.attempt;
+      if (att?.questionAttempts?.length) {
+        const correct = att.questionAttempts.filter((x) => x.isCorrect).length;
+        const total = att.questionAttempts.length;
+        const percent = Math.round(Number(att.score) * 100);
+        setScoreSummary({ correct, total, percent });
+      } else {
+        const correct = visibleQuestions.reduce((acc, q) => {
+          const selected = selectedAnswers[q.id];
+          return acc + (selected === q.correctIdx ? 1 : 0);
+        }, 0);
+        const total = visibleQuestions.length;
+        const percent = Math.round((correct / Math.max(1, total)) * 100);
+        setScoreSummary({ correct, total, percent });
+      }
+      setPhase("results");
+      router.refresh();
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -49,6 +104,12 @@ export function QuizAttemptForm({ quiz }: { quiz: UiQuiz }) {
         <p className="text-sm text-slate-700">
           Progress: {answeredCount}/{visibleQuestions.length} answered
         </p>
+      ) : null}
+
+      {submitError ? (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
+          {submitError}
+        </div>
       ) : null}
 
       {phase === "results" && scoreSummary ? (

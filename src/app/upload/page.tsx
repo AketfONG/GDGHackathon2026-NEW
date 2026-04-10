@@ -72,56 +72,55 @@ export default function UploadMaterialsPage() {
 
     setGenerating(true);
     setStatusMessage(null);
-    const errors: string[] = [];
 
+    const formData = new FormData();
     for (const file of list) {
-      const formData = new FormData();
       formData.append("file", file);
-      formData.append("course", courseName);
-      formData.append("week", weekNum);
-
-      try {
-        const res = await fetch("/api/quizzes/upload-generate-cold", {
-          method: "POST",
-          body: formData,
-        });
-        const data = (await res.json().catch(() => ({}))) as {
-          success?: boolean;
-          error?: string;
-        };
-        if (!res.ok || !data.success) {
-          errors.push(`${file.name}: ${data.error || res.statusText || "Failed"}`);
-          continue;
-        }
-        setUploadedFiles((prev) => ({
-          ...prev,
-          [selectedCourse]: {
-            ...prev[selectedCourse],
-            [selectedWeek]: [...(prev[selectedCourse][selectedWeek] || []), file.name],
-          },
-        }));
-      } catch (e) {
-        errors.push(`${file.name}: ${e instanceof Error ? e.message : "Network error"}`);
-      }
     }
+    formData.append("course", courseName);
+    formData.append("week", weekNum);
 
-    setGenerating(false);
-
-    if (errors.length === 0) {
+    try {
+      const res = await fetch("/api/quizzes/upload-generate-cold", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+        quiz?: { questionCount?: number; sourceFileCount?: number };
+      };
+      if (!res.ok || !data.success) {
+        setStatusMessage({
+          type: "err",
+          text: data.error || res.statusText || "Failed to generate cold test",
+        });
+        return;
+      }
+      setUploadedFiles((prev) => ({
+        ...prev,
+        [selectedCourse]: {
+          ...prev[selectedCourse],
+          [selectedWeek]: [...(prev[selectedCourse][selectedWeek] || []), ...list.map((f) => f.name)],
+        },
+      }));
+      const n = data.quiz?.questionCount ?? 0;
+      const k = list.length;
       setStatusMessage({
         type: "ok",
         text:
-          list.length > 1
-            ? `Cold tests generated from ${list.length} files. Open Quizzes to take them.`
-            : "Cold test generated from your file. Open Quizzes to take it.",
+          k > 1
+            ? `One cold test created with ${n} questions, drawn evenly from your ${k} files. Open Quizzes to take it.`
+            : `Cold test created with ${n} questions. Open Quizzes to take it.`,
       });
-    } else if (errors.length === list.length) {
-      setStatusMessage({ type: "err", text: errors.join(" · ") });
-    } else {
+    } catch (e) {
       setStatusMessage({
         type: "err",
-        text: `Partial success. Errors: ${errors.join(" · ")}`,
+        text: e instanceof Error ? e.message : "Network error",
       });
+    } finally {
+      setGenerating(false);
     }
   }
 
@@ -187,7 +186,8 @@ export default function UploadMaterialsPage() {
           <h1 className="text-3xl font-semibold text-slate-900">Upload Course Materials</h1>
           <p className="mt-2 text-slate-600">
             Upload a file for the selected course and week. A <strong>cold test</strong> is generated
-            automatically from the document (requires{" "}
+            automatically from your file(s). Multiple files in one upload become{" "}
+            <strong>one</strong> cold test with questions balanced across them (requires{" "}
             <code className="rounded bg-slate-200 px-1 text-sm">REPLICATE_API_TOKEN</code> in{" "}
             <code className="rounded bg-slate-200 px-1 text-sm">.env.local</code> and MongoDB).
           </p>
@@ -287,7 +287,8 @@ export default function UploadMaterialsPage() {
               </div>
               <h3 className="text-lg font-semibold text-slate-900">Upload Study Materials</h3>
               <p className="mt-2 text-sm text-slate-600">
-                Each file triggers AI generation of a cold test (may take up to a minute).
+                Select one or more files at once: we build a single cold test, mixing questions evenly
+                across materials (may take a few minutes for multiple files).
               </p>
               <div className="mt-4 flex flex-col items-center justify-center gap-2">
                 <input

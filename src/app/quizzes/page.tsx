@@ -1,57 +1,107 @@
 import { TopNav } from "@/components/top-nav";
-import { QuizAttemptForm } from "@/components/quiz-attempt-form";
 import { QuizList, type CourseQuiz } from "@/components/quiz-list";
 import { DbOfflineNotice } from "@/components/db-offline-notice";
 import { isDatabaseUnavailableError } from "@/lib/db-health";
 import { isBackendDisabled } from "@/lib/backend-toggle";
+import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/mongodb";
 import { QuizModel } from "@/models/Quiz";
-import { UiQuiz } from "@/lib/ui-quizzes";
+import { QuizAttemptModel } from "@/models/QuizAttempt";
+import { getServerUser } from "@/lib/auth/server-user";
+import { QUIZ_CLIENT_SCOPE_COOKIE } from "@/lib/quiz-client-scope";
+import { isSharedDemoUser } from "@/lib/quiz-access";
 
 export const dynamic = "force-dynamic";
 
 export default async function QuizzesPage() {
   let dbOffline = isBackendDisabled();
   let dbOfflineDetail: string | undefined;
-  let generatedQuizzes: CourseQuiz[] = [];
-  let legacyQuizzes: UiQuiz[] = [];
+  let coldQuizzes: CourseQuiz[] = [];
 
   if (!dbOffline) {
     try {
       await connectToDatabase();
-      
-      // Fetch all quizzes
-      const rows = await QuizModel.find({}).sort({ createdAt: -1 }).lean();
-      
-      // Convert to CourseQuiz format for display
-      generatedQuizzes = rows
-        .filter((quiz: any) => quiz.course && quiz.week && quiz.testType)
-        .map((quiz: any) => ({
-          id: String(quiz._id),
-          course: quiz.course || "Unknown",
-          week: parseInt(quiz.week) || undefined,
-          testType: (quiz.testType || "review") as "cold" | "hot" | "review",
-          title: quiz.title || "Quiz",
-          status: "not-started" as const,
-          totalQuestions: quiz.questions?.length || 0,
-        }));
 
-      // Also keep legacy quizzes for backward compatibility
-      legacyQuizzes = rows
-        .filter((quiz: any) => !quiz.testType)
-        .map((quiz) => ({
-          id: String(quiz._id),
-          title: quiz.title,
-          topic: quiz.topic,
-          difficulty: quiz.difficulty,
-          questions: (quiz.questions ?? []).map((q: { _id: unknown; prompt: string; options: unknown }) => ({
-            id: String(q._id),
-            prompt: q.prompt,
-            options: (Array.isArray(q.options) ? q.options : []).map((option) => String(option)),
-            correctIdx: Number((q as { correctIdx?: number }).correctIdx ?? 0),
-            explanation: String((q as { explanation?: string }).explanation ?? "No explanation provided."),
-          })),
-        }));
+      const cookieStore = await cookies();
+      const scope = cookieStore.get(QUIZ_CLIENT_SCOPE_COOKIE)?.value?.trim() ?? null;
+      const user = await getServerUser();
+
+      const viewerIsDemo = isSharedDemoUser(
+        user as { email?: string | null; firebaseUid?: string | null } | null,
+      );
+      const accessOr: Record<string, unknown>[] = [];
+      if (user?._id && !viewerIsDemo) accessOr.push({ ownerUserId: user._id });
+      if (scope) accessOr.push({ quizClientScope: scope });
+
+      let rows: unknown[] = [];
+      if (accessOr.length > 0) {
+        rows = await QuizModel.find({
+          testType: "cold",
+          createdFromUpload: true,
+          course: { $exists: true, $nin: ["", null] },
+          week: { $exists: true, $nin: ["", null] },
+          $or: accessOr,
+        })
+          .sort({ createdAt: -1 })
+          .lean();
+      }
+      const quizIds = rows.map((q) => (q as { _id: unknown })._id);
+
+      const latestByQuizId = new Map<
+        string,
+        { score: number; questionAttempts: { isCorrect: boolean }[] }
+      >();
+
+      if (user?._id && quizIds.length > 0) {
+        const attempts = await QuizAttemptModel.find({
+          userId: user._id,
+          quizId: { $in: quizIds },
+        })
+          .sort({ submittedAt: -1 })
+          .lean();
+
+        for (const att of attempts) {
+          const qid = String(att.quizId);
+          if (!latestByQuizId.has(qid)) {
+            latestByQuizId.set(qid, {
+              score: Number(att.score) || 0,
+              questionAttempts: (att.questionAttempts ?? []) as { isCorrect: boolean }[],
+            });
+          }
+        }
+      }
+
+      coldQuizzes = rows
+        .filter((quiz: any) => String(quiz.course ?? "").trim() && String(quiz.week ?? "").trim())
+        .map((quiz: any) => {
+          const qid = String(quiz._id);
+          const latest = latestByQuizId.get(qid);
+          const totalQ = quiz.questions?.length || 0;
+          if (!latest) {
+            return {
+              id: qid,
+              course: quiz.course || "Unknown",
+              week: parseInt(quiz.week) || undefined,
+              testType: "cold" as const,
+              title: quiz.title || "Quiz",
+              status: "not-started" as const,
+              totalQuestions: totalQ,
+            };
+          }
+          const correctAnswers = latest.questionAttempts.filter((x) => x.isCorrect).length;
+          const graded = latest.questionAttempts.length || 1;
+          return {
+            id: qid,
+            course: quiz.course || "Unknown",
+            week: parseInt(quiz.week) || undefined,
+            testType: "cold" as const,
+            title: quiz.title || "Quiz",
+            status: "completed" as const,
+            totalQuestions: graded,
+            correctAnswers,
+            score: Math.round(latest.score * 100),
+          };
+        });
     } catch (error) {
       if (isDatabaseUnavailableError(error)) {
         dbOffline = true;
@@ -71,138 +121,35 @@ export default async function QuizzesPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Quizzes</h1>
           <p className="mt-2 text-slate-600">
-            Take cold, hot, and review tests to master each course
+            Cold tests built from materials you upload appear here—nothing is shown until you generate one.
           </p>
         </div>
 
-        {/* Test Types Legend */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="rounded-lg bg-blue-50 p-4 border border-blue-200">
-            <div className="font-semibold text-blue-900">💧 Cold Test</div>
+        {!dbOffline && coldQuizzes.length > 0 ? (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <div className="font-semibold text-blue-900">Cold test</div>
             <p className="mt-1 text-sm text-blue-800">
-              Baseline test at the start of the week to assess current knowledge
+              These quizzes were generated from files you uploaded for the listed course and week.
             </p>
           </div>
-          <div className="rounded-lg bg-red-50 p-4 border border-red-200">
-            <div className="font-semibold text-red-900">🔥 Hot Test</div>
-            <p className="mt-1 text-sm text-red-800">
-              Same quiz as cold test, taken one week later to measure improvement
-            </p>
-          </div>
-          <div className="rounded-lg bg-purple-50 p-4 border border-purple-200">
-            <div className="font-semibold text-purple-900">📚 Review Test</div>
-            <p className="mt-1 text-sm text-purple-800">
-              Unlimited practice on unclear concepts and challenging topics
-            </p>
-          </div>
-        </div>
+        ) : null}
 
         {dbOffline ? (
-          <>
-            <div className="mb-8 space-y-3">
-              <DbOfflineNotice detail={dbOfflineDetail} />
-              <p className="text-sm text-amber-900">
-                Generated quizzes from the database are hidden while the connection is unavailable.
-                The list below is a sample only.
+          <div className="mb-8 space-y-3">
+            <DbOfflineNotice detail={dbOfflineDetail} />
+            <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+              <p className="text-lg text-slate-600">
+                Quizzes are unavailable while the database is offline.
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                Fix <code className="rounded bg-slate-200 px-1 text-xs">MONGODB_URI</code>, then refresh.
               </p>
             </div>
-            <QuizList
-              quizzes={[
-                {
-                  id: "econ-w1-cold",
-                  course: "ECON2103",
-                  week: 1,
-                  testType: "cold",
-                  title: "Week 1: Microeconomics - Cold Test",
-                  status: "not-started",
-                  dueDate: "2026-04-14",
-                },
-              ]}
-            />
-          </>
-        ) : generatedQuizzes.length > 0 ? (
-          <QuizList quizzes={generatedQuizzes} />
-        ) : legacyQuizzes.length > 0 ? (
-          <>
-            <div className="border-t border-slate-200 pt-8">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">
-                Available Tests
-              </h2>
-              <div className="space-y-4">
-                {legacyQuizzes.map((quiz) => (
-                  <section
-                    key={quiz.id}
-                    className="rounded-lg border border-slate-200 bg-white p-4"
-                  >
-                    <div className="mb-3">
-                      <h2 className="text-lg font-semibold">{quiz.title}</h2>
-                      <p className="text-sm text-slate-600">
-                        {quiz.topic} · {quiz.difficulty}
-                      </p>
-                    </div>
-                    <QuizAttemptForm quiz={quiz} />
-                  </section>
-                ))}
-              </div>
-            </div>
-          </>
+          </div>
         ) : (
-          <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-12 text-center">
-            <p className="text-lg text-slate-600 mb-2">
-              No tests available yet
-            </p>
-            <p className="text-sm text-slate-500">
-              Upload course materials in the <span className="font-semibold">Upload Materials</span> tab to generate quizzes
-            </p>
-          </div>
-        )}
-
-        {/* Sample Quiz Structure (for demonstration) */}
-        {!dbOffline && generatedQuizzes.length === 0 && legacyQuizzes.length === 0 && (
-          <div className="border-t border-slate-200 pt-8">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">
-              Example Quiz Structure
-            </h2>
-            <QuizList
-              quizzes={[
-                {
-                  id: "ex1",
-                  course: "ECON2103",
-                  week: 1,
-                  testType: "cold",
-                  title: "Week 1: Microeconomics - Cold Test",
-                  status: "not-started",
-                  dueDate: "2026-04-14",
-                },
-                {
-                  id: "ex2",
-                  course: "ECON2103",
-                  week: 2,
-                  testType: "hot",
-                  title: "Week 1: Microeconomics - Hot Test",
-                  status: "not-started",
-                  dueDate: "2026-04-21",
-                },
-                {
-                  id: "ex3",
-                  course: "ECON2103",
-                  testType: "review",
-                  topic: "Supply & Demand - Unclear Concepts",
-                  title: "Review: Market Equilibrium Practice",
-                  status: "not-started",
-                },
-              ]}
-            />
-          </div>
+          <QuizList quizzes={coldQuizzes} />
         )}
       </main>
     </div>
   );
-}
-
-// Helper to convert legacy quizzes to new format
-function convertToLegacyQuizzes(
-  quizzes: UiQuiz[]
-): UiQuiz[] {
-  return quizzes;
 }

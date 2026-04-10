@@ -73,9 +73,14 @@ export function QuizList({ quizzes }: QuizListProps) {
 
   if (Object.keys(courseGroups).length === 0) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-12 text-center">
-        <p className="text-slate-600">
-          No quizzes yet. Upload course materials above to generate quizzes!
+      <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+        <p className="text-lg text-slate-600">No quizzes yet</p>
+        <p className="mt-2 text-sm text-slate-500">
+          Upload course materials on the{" "}
+          <Link href="/upload" className="font-semibold text-blue-600 underline hover:text-blue-700">
+            Upload Materials
+          </Link>{" "}
+          page to generate your first cold test.
         </p>
       </div>
     );
@@ -90,11 +95,11 @@ export function QuizList({ quizzes }: QuizListProps) {
           </h2>
 
           <div className="space-y-6">
-            {/* Weekly Tests (Cold & Hot) */}
+            {/* Cold tests from uploaded materials */}
             {courseQuizzes.filter((q) => q.testType !== "review").length > 0 && (
               <div>
                 <h3 className="mb-4 text-lg font-semibold text-slate-800">
-                  Weekly Tests
+                  Cold tests
                 </h3>
                 <div className="space-y-4">
                   {courseQuizzes
@@ -140,7 +145,7 @@ export function QuizList({ quizzes }: QuizListProps) {
                                 ? "Not Started"
                                 : quiz.status === "in-progress"
                                   ? "In Progress"
-                                  : "Completed"}
+                                  : "Done"}
                             </span>
                             {quiz.status === "completed" && (
                               <div className="mt-2">

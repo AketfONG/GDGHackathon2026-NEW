@@ -2,9 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TopNav } from "@/components/top-nav";
 import { QuizAttemptForm } from "@/components/quiz-attempt-form";
+import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/mongodb";
 import { QuizModel } from "@/models/Quiz";
 import type { UiQuiz } from "@/lib/ui-quizzes";
+import { getServerUser } from "@/lib/auth/server-user";
+import { QUIZ_CLIENT_SCOPE_COOKIE } from "@/lib/quiz-client-scope";
+import { viewerCanAccessQuiz, isSharedDemoUser } from "@/lib/quiz-access";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +46,33 @@ export default async function QuizTakePage({ params }: { params: Promise<{ id: s
 
   const row = await QuizModel.findById(id).lean();
   if (!row) {
+    notFound();
+  }
+
+  const rowTyped = row as {
+    testType?: string;
+    createdFromUpload?: boolean;
+    course?: string;
+    week?: string;
+    ownerUserId?: unknown;
+    quizClientScope?: string | null;
+  };
+  if (
+    rowTyped.testType !== "cold" ||
+    rowTyped.createdFromUpload !== true ||
+    !String(rowTyped.course ?? "").trim() ||
+    !String(rowTyped.week ?? "").trim()
+  ) {
+    notFound();
+  }
+
+  const cookieStore = await cookies();
+  const scope = cookieStore.get(QUIZ_CLIENT_SCOPE_COOKIE)?.value ?? null;
+  const user = await getServerUser();
+  const viewerIsDemo = isSharedDemoUser(
+    user as { email?: string | null; firebaseUid?: string | null } | null,
+  );
+  if (!viewerCanAccessQuiz(rowTyped, { userId: user?._id, scope, viewerIsDemo })) {
     notFound();
   }
 
