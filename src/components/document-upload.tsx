@@ -3,6 +3,21 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
+const COURSES = [
+  { id: "bio101", name: "Biology 101" },
+  { id: "chem201", name: "Chemistry Advanced" },
+  { id: "econ2103", name: "ECON2103" },
+  { id: "math301", name: "Calculus I" },
+];
+
+const WEEKS = [
+  { id: "1", name: "Week 1" },
+  { id: "2", name: "Week 2" },
+  { id: "3", name: "Week 3" },
+  { id: "4", name: "Week 4" },
+  { id: "5", name: "Week 5" },
+];
+
 interface GeneratedMCQ {
   question: string;
   options: string[];
@@ -16,11 +31,15 @@ interface GeneratedMCQ {
 export function DocumentUploadForm() {
   const [file, setFile] = useState<File | null>(null);
   const [topic, setTopic] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState("econ2103");
+  const [selectedWeek, setSelectedWeek] = useState("1");
   const [loading, setLoading] = useState(false);
+  const [savingToQuizzes, setSavingToQuizzes] = useState(false);
   const [questions, setQuestions] = useState<GeneratedMCQ[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [documentInfo, setDocumentInfo] = useState<{ title: string; fileName: string } | null>(null);
   const [qwenConfigured, setQwenConfigured] = useState<boolean | null>(null);
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
     // Check if Qwen API is configured
@@ -60,6 +79,14 @@ export function DocumentUploadForm() {
       setError("Please select a file");
       return;
     }
+    if (!selectedCourse) {
+      setError("Please select a course");
+      return;
+    }
+    if (!selectedWeek) {
+      setError("Please select a week");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -67,7 +94,9 @@ export function DocumentUploadForm() {
     try {
       const formData = new FormData();
       formData.append("file", file);
-      if (topic) formData.append("topic", topic);
+      formData.append("topic", topic || selectedCourse);
+      formData.append("course", selectedCourse);
+      formData.append("week", selectedWeek);
 
       const response = await fetch("/api/quizzes/generate-from-document", {
         method: "POST",
@@ -87,6 +116,37 @@ export function DocumentUploadForm() {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveToQuizzes = async () => {
+    setSavingToQuizzes(true);
+    try {
+      const response = await fetch("/api/quizzes/save-from-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          course: selectedCourse,
+          week: selectedWeek,
+          questions: questions,
+          testType: "cold",
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setSavedSuccess(true);
+        setQuestions([]);
+        setFile(null);
+        setTopic("");
+        setTimeout(() => setSavedSuccess(false), 5000);
+      } else {
+        setError(data.error || "Failed to save quizzes");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save quizzes");
+    } finally {
+      setSavingToQuizzes(false);
     }
   };
 
@@ -155,18 +215,36 @@ export function DocumentUploadForm() {
 
         <div className="mt-6 flex gap-3">
           <button
-            onClick={() => setQuestions([])}
+            onClick={() => {
+              setQuestions([]);
+              setSavedSuccess(false);
+            }}
             className="rounded-md bg-slate-600 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
           >
             Generate More Questions
           </button>
-          <Link
-            href="/quizzes"
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          <button
+            onClick={handleSaveToQuizzes}
+            disabled={savingToQuizzes}
+            className="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:bg-slate-300"
           >
-            Add to Quizzes →
-          </Link>
+            {savingToQuizzes ? "Saving..." : "Save to Quizzes"}
+          </button>
         </div>
+
+        {savedSuccess && (
+          <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-4">
+            <p className="text-sm font-semibold text-green-800">
+              ✓ Quiz saved successfully! Go to the Quizzes tab to start the test.
+            </p>
+            <Link
+              href="/quizzes"
+              className="mt-2 inline-block rounded-md bg-green-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-700"
+            >
+              Go to Quizzes →
+            </Link>
+          </div>
+        )}
       </div>
     );
   }
@@ -175,10 +253,49 @@ export function DocumentUploadForm() {
     <div className="rounded-lg border border-slate-200 bg-white p-6">
       <h2 className="mb-4 text-2xl font-semibold text-slate-900">Generate MCQs from Course Materials</h2>
       <p className="mb-6 text-slate-600">
-        Upload your course slides, lecture notes, or textbook chapters. Our AI will analyze the content and diagrams to generate 10 tailored multiple-choice questions.
+        Upload your course slides, lecture notes, or textbook chapters. Our AI will analyze the content to generate 10 tailored multiple-choice questions.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Course Selection */}
+        <div>
+          <label htmlFor="course" className="mb-2 block text-sm font-semibold text-slate-900">
+            Select Course
+          </label>
+          <select
+            id="course"
+            value={selectedCourse}
+            onChange={(e) => setSelectedCourse(e.target.value)}
+            className="block w-full rounded-lg border border-slate-300 p-2 text-sm"
+          >
+            {COURSES.map((course) => (
+              <option key={course.id} value={course.id}>
+                {course.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Week Selection */}
+        <div>
+          <label htmlFor="week" className="mb-2 block text-sm font-semibold text-slate-900">
+            Select Week
+          </label>
+          <select
+            id="week"
+            value={selectedWeek}
+            onChange={(e) => setSelectedWeek(e.target.value)}
+            className="block w-full rounded-lg border border-slate-300 p-2 text-sm"
+          >
+            {WEEKS.map((week) => (
+              <option key={week.id} value={week.id}>
+                {week.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* File Upload */}
         <div>
           <label htmlFor="file" className="mb-2 block text-sm font-semibold text-slate-900">
             Upload Document
@@ -197,6 +314,7 @@ export function DocumentUploadForm() {
 
         {file && <p className="text-sm font-medium text-green-700">✓ {file.name} selected</p>}
 
+        {/* Topic (Optional) */}
         <div>
           <label htmlFor="topic" className="mb-2 block text-sm font-semibold text-slate-900">
             Topic (Optional)
@@ -206,7 +324,7 @@ export function DocumentUploadForm() {
             id="topic"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="e.g., Photosynthesis, Calculus, World History"
+            placeholder="e.g., Microeconomics, Supply & Demand"
             className="block w-full rounded-lg border border-slate-300 p-2 text-sm placeholder:text-slate-400 focus:border-blue-500 focus:ring-blue-500"
           />
         </div>
@@ -215,7 +333,7 @@ export function DocumentUploadForm() {
 
         <button
           type="submit"
-          disabled={!file || loading}
+          disabled={!file || loading || !selectedCourse || !selectedWeek}
           className="w-full rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:bg-slate-300"
         >
           {loading ? "Generating Questions... (This may take 1-2 minutes)" : "Generate 10 MCQs"}
@@ -226,16 +344,19 @@ export function DocumentUploadForm() {
         <h3 className="mb-3 font-semibold text-slate-900">How it works:</h3>
         <ol className="space-y-2 text-sm text-slate-600">
           <li>
-            <span className="font-semibold text-slate-900">1. Upload</span> - Submit your course materials (PDF, PPT, or Word doc)
+            <span className="font-semibold text-slate-900">1. Select course & week</span>
           </li>
           <li>
-            <span className="font-semibold text-slate-900">2. Parse</span> - Extract text from the document
+            <span className="font-semibold text-slate-900">2. Upload</span> - Submit your course materials
           </li>
           <li>
-            <span className="font-semibold text-slate-900">3. Analyze</span> - AI reads and understands the content
+            <span className="font-semibold text-slate-900">3. Generate</span> - AI creates 10 MCQs
           </li>
           <li>
-            <span className="font-semibold text-slate-900">4. Generate</span> - Creates 10 MCQs tailored to your course
+            <span className="font-semibold text-slate-900">4. Save</span> - Click "Save to Quizzes" to store them
+          </li>
+          <li>
+            <span className="font-semibold text-slate-900">5. Take Quiz</span> - Go to Quizzes tab to start and score
           </li>
         </ol>
       </div>

@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { TopNav } from "@/components/top-nav";
 import { FileUploadSection } from "@/components/file-upload-section";
+import { DocumentUploadForm } from "@/components/document-upload";
 import { useState } from "react";
 
 // Mock courses data
 const MOCK_COURSES = [
+  { id: "econ2103", name: "ECON2103" },
   { id: "bio101", name: "Biology 101" },
   { id: "chem201", name: "Chemistry Advanced" },
   { id: "math301", name: "Calculus I" },
@@ -33,6 +35,13 @@ const getFileIcon = (filename: string) => {
 
 // Mock uploaded files organized by course and week
 const MOCK_UPLOADED_FILES = {
+  econ2103: {
+    week1: [],
+    week2: [],
+    week3: [],
+    week4: [],
+    week5: [],
+  },
   bio101: {
     week1: ["Introduction-to-Biology.pdf", "Chapter1-Notes.md"],
     week2: ["Cell-Structure.pdf"],
@@ -165,9 +174,26 @@ export default function UploadMaterialsPage() {
           </Link>
           <h1 className="text-3xl font-semibold text-slate-900">Upload Course Materials</h1>
           <p className="mt-2 text-slate-600">
-            Select a course and week, then upload your study materials.
+            Upload study materials or use AI to generate quizzes directly from course content.
           </p>
         </section>
+
+        {/* AI MCQ Generation Section */}
+        <div className="mb-8 rounded-lg border-4 border-blue-200 bg-blue-50 p-6">
+          <div className="mb-4">
+            <h2 className="inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
+              ✨ GENERATE QUIZZES DIRECTLY
+            </h2>
+          </div>
+          <DocumentUploadForm />
+        </div>
+
+        {/* Divider */}
+        <div className="mb-8 flex items-center gap-4">
+          <div className="flex-1 border-t border-slate-300"></div>
+          <p className="text-sm font-semibold text-slate-600">OR</p>
+          <div className="flex-1 border-t border-slate-300"></div>
+        </div>
 
         {/* Course Selection */}
         <div className="mb-8 rounded-lg border border-slate-200 bg-white p-6">

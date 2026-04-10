@@ -1,6 +1,6 @@
 import { TopNav } from "@/components/top-nav";
 import { QuizAttemptForm } from "@/components/quiz-attempt-form";
-import { DocumentUploadForm } from "@/components/document-upload";
+import { QuizList, type CourseQuiz } from "@/components/quiz-list";
 import { DbOfflineNotice } from "@/components/db-offline-notice";
 import { isDatabaseUnavailableError } from "@/lib/db-health";
 import { isBackendDisabled } from "@/lib/backend-toggle";
@@ -12,25 +12,45 @@ export const dynamic = "force-dynamic";
 
 export default async function QuizzesPage() {
   let dbOffline = isBackendDisabled();
-  let quizzes: UiQuiz[] = [];
+  let generatedQuizzes: CourseQuiz[] = [];
+  let legacyQuizzes: UiQuiz[] = [];
 
   if (!dbOffline) {
     try {
       await connectToDatabase();
+      
+      // Fetch all quizzes
       const rows = await QuizModel.find({}).sort({ createdAt: -1 }).lean();
-      quizzes = rows.map((quiz) => ({
-        id: String(quiz._id),
-        title: quiz.title,
-        topic: quiz.topic,
-        difficulty: quiz.difficulty,
-        questions: (quiz.questions ?? []).map((q: { _id: unknown; prompt: string; options: unknown }) => ({
-          id: String(q._id),
-          prompt: q.prompt,
-          options: (Array.isArray(q.options) ? q.options : []).map((option) => String(option)),
-          correctIdx: Number((q as { correctIdx?: number }).correctIdx ?? 0),
-          explanation: String((q as { explanation?: string }).explanation ?? "No explanation provided."),
-        })),
-      }));
+      
+      // Convert to CourseQuiz format for display
+      generatedQuizzes = rows
+        .filter((quiz: any) => quiz.course && quiz.week && quiz.testType)
+        .map((quiz: any) => ({
+          id: String(quiz._id),
+          course: quiz.course || "Unknown",
+          week: parseInt(quiz.week) || undefined,
+          testType: (quiz.testType || "review") as "cold" | "hot" | "review",
+          title: quiz.title || "Quiz",
+          status: "not-started" as const,
+          totalQuestions: quiz.questions?.length || 0,
+        }));
+
+      // Also keep legacy quizzes for backward compatibility
+      legacyQuizzes = rows
+        .filter((quiz: any) => !quiz.testType)
+        .map((quiz) => ({
+          id: String(quiz._id),
+          title: quiz.title,
+          topic: quiz.topic,
+          difficulty: quiz.difficulty,
+          questions: (quiz.questions ?? []).map((q: { _id: unknown; prompt: string; options: unknown }) => ({
+            id: String(q._id),
+            prompt: q.prompt,
+            options: (Array.isArray(q.options) ? q.options : []).map((option) => String(option)),
+            correctIdx: Number((q as { correctIdx?: number }).correctIdx ?? 0),
+            explanation: String((q as { explanation?: string }).explanation ?? "No explanation provided."),
+          })),
+        }));
     } catch (error) {
       if (isDatabaseUnavailableError(error)) {
         dbOffline = true;
@@ -43,41 +63,140 @@ export default async function QuizzesPage() {
   return (
     <div className="min-h-screen">
       <TopNav />
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-8">
-        <h1 className="text-2xl font-semibold">Quizzes</h1>
-
-        {/* AI MCQ Generation Section */}
-        <div className="mb-8 border-b-4 border-blue-200 pb-8">
-          <div className="mb-6">
-            <h2 className="mb-2 inline-block rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-800">
-              ✨ NEW FEATURE
-            </h2>
-          </div>
-          <DocumentUploadForm />
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Quizzes</h1>
+          <p className="mt-2 text-slate-600">
+            Take cold, hot, and review tests to master each course
+          </p>
         </div>
 
-        {dbOffline ? <DbOfflineNotice /> : null}
-        {!dbOffline && quizzes.length === 0 ? (
-          <p className="rounded border border-slate-200 bg-white p-4 text-slate-600">
-            No quizzes yet. Click Initialize Demo Data on Home.
-          </p>
-        ) : null}
-        {!dbOffline ? (
-          <div className="space-y-4">
-            {quizzes.map((quiz) => (
-              <section key={quiz.id} className="rounded-lg border border-slate-200 bg-white p-4">
-                <div className="mb-3">
-                  <h2 className="text-lg font-semibold">{quiz.title}</h2>
-                  <p className="text-sm text-slate-600">
-                    {quiz.topic} · {quiz.difficulty}
-                  </p>
-                </div>
-                <QuizAttemptForm quiz={quiz} />
-              </section>
-            ))}
+        {/* Test Types Legend */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="rounded-lg bg-blue-50 p-4 border border-blue-200">
+            <div className="font-semibold text-blue-900">💧 Cold Test</div>
+            <p className="mt-1 text-sm text-blue-800">
+              Baseline test at the start of the week to assess current knowledge
+            </p>
           </div>
-        ) : null}
+          <div className="rounded-lg bg-red-50 p-4 border border-red-200">
+            <div className="font-semibold text-red-900">🔥 Hot Test</div>
+            <p className="mt-1 text-sm text-red-800">
+              Same quiz as cold test, taken one week later to measure improvement
+            </p>
+          </div>
+          <div className="rounded-lg bg-purple-50 p-4 border border-purple-200">
+            <div className="font-semibold text-purple-900">📚 Review Test</div>
+            <p className="mt-1 text-sm text-purple-800">
+              Unlimited practice on unclear concepts and challenging topics
+            </p>
+          </div>
+        </div>
+
+        {dbOffline ? (
+          <>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 mb-8">
+              <p className="text-sm text-amber-900">
+                Backend unavailable. Check your MongoDB connection to see your generated quizzes.
+              </p>
+            </div>
+            <QuizList
+              quizzes={[
+                {
+                  id: "econ-w1-cold",
+                  course: "ECON2103",
+                  week: 1,
+                  testType: "cold",
+                  title: "Week 1: Microeconomics - Cold Test",
+                  status: "not-started",
+                  dueDate: "2026-04-14",
+                },
+              ]}
+            />
+          </>
+        ) : generatedQuizzes.length > 0 ? (
+          <QuizList quizzes={generatedQuizzes} />
+        ) : legacyQuizzes.length > 0 ? (
+          <>
+            <div className="border-t border-slate-200 pt-8">
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">
+                Available Tests
+              </h2>
+              <div className="space-y-4">
+                {legacyQuizzes.map((quiz) => (
+                  <section
+                    key={quiz.id}
+                    className="rounded-lg border border-slate-200 bg-white p-4"
+                  >
+                    <div className="mb-3">
+                      <h2 className="text-lg font-semibold">{quiz.title}</h2>
+                      <p className="text-sm text-slate-600">
+                        {quiz.topic} · {quiz.difficulty}
+                      </p>
+                    </div>
+                    <QuizAttemptForm quiz={quiz} />
+                  </section>
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+            <p className="text-lg text-slate-600 mb-2">
+              No tests available yet
+            </p>
+            <p className="text-sm text-slate-500">
+              Upload course materials in the <span className="font-semibold">Upload Materials</span> tab to generate quizzes
+            </p>
+          </div>
+        )}
+
+        {/* Sample Quiz Structure (for demonstration) */}
+        {!dbOffline && generatedQuizzes.length === 0 && legacyQuizzes.length === 0 && (
+          <div className="border-t border-slate-200 pt-8">
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">
+              Example Quiz Structure
+            </h2>
+            <QuizList
+              quizzes={[
+                {
+                  id: "ex1",
+                  course: "ECON2103",
+                  week: 1,
+                  testType: "cold",
+                  title: "Week 1: Microeconomics - Cold Test",
+                  status: "not-started",
+                  dueDate: "2026-04-14",
+                },
+                {
+                  id: "ex2",
+                  course: "ECON2103",
+                  week: 2,
+                  testType: "hot",
+                  title: "Week 1: Microeconomics - Hot Test",
+                  status: "not-started",
+                  dueDate: "2026-04-21",
+                },
+                {
+                  id: "ex3",
+                  course: "ECON2103",
+                  testType: "review",
+                  topic: "Supply & Demand - Unclear Concepts",
+                  title: "Review: Market Equilibrium Practice",
+                  status: "not-started",
+                },
+              ]}
+            />
+          </div>
+        )}
       </main>
     </div>
   );
+}
+
+// Helper to convert legacy quizzes to new format
+function convertToLegacyQuizzes(
+  quizzes: UiQuiz[]
+): UiQuiz[] {
+  return quizzes;
 }
