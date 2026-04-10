@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FirebaseError } from "firebase/app";
 import {
   createUserWithEmailAndPassword,
+  onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
@@ -20,6 +21,7 @@ export function EmailAuthForm() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   if (!firebaseAuth) {
     return (
@@ -28,6 +30,19 @@ export function EmailAuthForm() {
       </p>
     );
   }
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(firebaseAuth, (user) => {
+      setIsLoggedIn(Boolean(user));
+      if (!user) {
+        // Clear stale form state after logout.
+        setEmail("");
+        setPassword("");
+        setMessage("");
+      }
+    });
+    return () => unsub();
+  }, []);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,6 +65,9 @@ export function EmailAuthForm() {
           case "auth/invalid-credential":
             setMessage("Invalid email or password.");
             break;
+          case "auth/invalid-email":
+            setMessage("Invalid email format.");
+            break;
           case "auth/email-already-in-use":
             setMessage("This email is already used. Try login instead.");
             break;
@@ -57,10 +75,16 @@ export function EmailAuthForm() {
             setMessage("Password is too weak. Use at least 6 characters.");
             break;
           case "auth/operation-not-allowed":
-            setMessage("Email/password login is disabled in Firebase settings.");
+            setMessage("Email/password sign-in is disabled in Firebase Auth. Enable Email/Password in Firebase Console.");
+            break;
+          case "auth/network-request-failed":
+            setMessage("Network error while contacting Firebase. Check connection and try again.");
+            break;
+          case "auth/too-many-requests":
+            setMessage("Too many attempts. Please wait a minute and try again.");
             break;
           default:
-            setMessage("Authentication failed. Check Firebase Auth configuration.");
+            setMessage(`Authentication failed (${error.code}). Check Firebase Auth configuration.`);
             break;
         }
       } else {
@@ -72,6 +96,8 @@ export function EmailAuthForm() {
   }
 
   async function handleLogout() {
+    const confirmed = window.confirm("Do you want to log out?");
+    if (!confirmed) return;
     setBusy(true);
     setMessage("");
     try {
@@ -85,31 +111,15 @@ export function EmailAuthForm() {
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
-      <div className="mb-3 flex gap-2">
-        <button
-          type="button"
-          onClick={() => setMode("login")}
-          className={`rounded-md px-3 py-1 text-sm ${mode === "login" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
-        >
-          Login
-        </button>
-        <button
-          type="button"
-          onClick={() => setMode("signup")}
-          className={`rounded-md px-3 py-1 text-sm ${mode === "signup" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700"}`}
-        >
-          Sign Up
-        </button>
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-2">
+    <div>
+      <form onSubmit={handleSubmit} className="space-y-2" autoComplete="off">
         <input
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
           required
+          autoComplete="off"
           className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
         />
         <input
@@ -119,8 +129,19 @@ export function EmailAuthForm() {
           placeholder="Password"
           required
           minLength={6}
+          autoComplete="new-password"
           className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
         />
+        <p className="text-xs text-slate-600">
+          {mode === "login" ? "New here? " : "Already have an account? "}
+          <button
+            type="button"
+            onClick={() => setMode(mode === "login" ? "signup" : "login")}
+            className="font-medium text-sky-600 hover:text-sky-700"
+          >
+            {mode === "login" ? "Sign up" : "Log in"}
+          </button>
+        </p>
         <div className="flex flex-wrap gap-2">
           <button
             type="submit"
@@ -129,14 +150,16 @@ export function EmailAuthForm() {
           >
             {mode === "signup" ? "Create Account" : "Login"}
           </button>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={busy}
-            className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
-          >
-            Logout
-          </button>
+          {isLoggedIn ? (
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={busy}
+              className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+            >
+              Logout
+            </button>
+          ) : null}
         </div>
       </form>
       {message ? <p className="mt-2 text-sm text-slate-700">{message}</p> : null}

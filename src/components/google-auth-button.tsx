@@ -42,6 +42,8 @@ export function GoogleAuthButton() {
 
   async function handleLogout() {
     if (!firebaseAuth) return;
+    const confirmed = window.confirm("Do you want to log out?");
+    if (!confirmed) return;
     setBusy(true);
     setErrorText("");
     try {
@@ -64,14 +66,13 @@ export function GoogleAuthButton() {
   if (user) {
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-slate-700">{user.email}</span>
         <button
           type="button"
           onClick={handleLogout}
           disabled={busy}
-          className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm hover:bg-slate-100 disabled:opacity-60"
+          className="rounded-md bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700 disabled:opacity-60"
         >
-          Sign out
+          Log out
         </button>
         {errorText ? <p className="w-full text-xs text-rose-600">{errorText}</p> : null}
       </div>
@@ -84,9 +85,9 @@ export function GoogleAuthButton() {
         type="button"
         onClick={handleLogin}
         disabled={busy}
-        className="rounded-md border border-slate-300 bg-white px-3 py-1 text-sm hover:bg-slate-100 disabled:opacity-60"
+        className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
       >
-        Sign in with Google
+        Login
       </button>
       {errorText ? <p className="text-xs text-rose-600">{errorText}</p> : null}
     </div>
