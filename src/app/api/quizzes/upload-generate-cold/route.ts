@@ -206,6 +206,7 @@ export async function POST(req: NextRequest) {
       course,
       week,
       testType: "cold" as const,
+      createdFromUpload: true,
       questions: mappedQuestions,
     });
 

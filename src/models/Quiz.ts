@@ -1,4 +1,4 @@
-import { Schema, model, models } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 
 const quizQuestionSchema = new Schema(
   {
@@ -19,8 +19,15 @@ const quizSchema = new Schema(
     course: { type: String },
     week: { type: String },
     testType: { type: String, enum: ["cold", "hot", "review"] },
+    /** True only when created via upload-generate-cold or save-from-upload (cold). Listed on /quizzes. */
+    createdFromUpload: { type: Boolean, default: false },
   },
   { timestamps: true },
 );
 
-export const QuizModel = models.Quiz || model("Quiz", quizSchema);
+// Next.js can keep a cached model from before new schema fields existed; then saves drop those paths.
+if (mongoose.models.Quiz && !mongoose.models.Quiz.schema.path("createdFromUpload")) {
+  delete mongoose.models.Quiz;
+}
+
+export const QuizModel = mongoose.models.Quiz ?? mongoose.model("Quiz", quizSchema);

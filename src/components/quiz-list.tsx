@@ -95,11 +95,11 @@ export function QuizList({ quizzes }: QuizListProps) {
           </h2>
 
           <div className="space-y-6">
-            {/* Weekly Tests (Cold & Hot) */}
+            {/* Cold tests from uploaded materials */}
             {courseQuizzes.filter((q) => q.testType !== "review").length > 0 && (
               <div>
                 <h3 className="mb-4 text-lg font-semibold text-slate-800">
-                  Weekly Tests
+                  Cold tests
                 </h3>
                 <div className="space-y-4">
                   {courseQuizzes

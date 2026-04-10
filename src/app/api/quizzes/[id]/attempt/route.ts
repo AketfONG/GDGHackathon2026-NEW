@@ -51,6 +51,20 @@ export async function POST(
   if (!quiz) {
     return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
   }
+  const q = quiz as {
+    testType?: string;
+    createdFromUpload?: boolean;
+    course?: string;
+    week?: string;
+  };
+  if (
+    q.testType !== "cold" ||
+    q.createdFromUpload !== true ||
+    !String(q.course ?? "").trim() ||
+    !String(q.week ?? "").trim()
+  ) {
+    return NextResponse.json({ error: "Quiz not found" }, { status: 404 });
+  }
 
   const questions = (quiz.questions ?? []) as QuizQuestion[];
   const questionMap = new Map<string, QuizQuestion>(questions.map((q) => [String(q._id), q]));

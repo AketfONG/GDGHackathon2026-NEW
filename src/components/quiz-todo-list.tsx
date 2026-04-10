@@ -21,8 +21,14 @@ export function QuizTodoList({ quizzes, loading }: { quizzes: Quiz[]; loading: b
   if (!quizzes || quizzes.length === 0) {
     return (
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-6 text-center">
-        <p className="text-slate-600">No quizzes available yet.</p>
-        <p className="mt-2 text-sm text-slate-500">Upload course materials to generate a study plan.</p>
+        <p className="text-slate-600">No cold tests yet.</p>
+        <p className="mt-2 text-sm text-slate-500">
+          Use{" "}
+          <Link href="/upload" className="font-semibold text-blue-600 underline hover:text-blue-700">
+            Upload Materials
+          </Link>{" "}
+          to generate a quiz; it will show here and on the Quizzes page.
+        </p>
       </div>
     );
   }

@@ -45,6 +45,21 @@ export default async function QuizTakePage({ params }: { params: Promise<{ id: s
     notFound();
   }
 
+  const rowTyped = row as {
+    testType?: string;
+    createdFromUpload?: boolean;
+    course?: string;
+    week?: string;
+  };
+  if (
+    rowTyped.testType !== "cold" ||
+    rowTyped.createdFromUpload !== true ||
+    !String(rowTyped.course ?? "").trim() ||
+    !String(rowTyped.week ?? "").trim()
+  ) {
+    notFound();
+  }
+
   const questions = (row.questions ?? []).map((q: Record<string, unknown>, i: number) => ({
     id: String((q as { _id?: unknown })._id ?? `q-${i}`),
     prompt: String((q as { prompt?: string }).prompt ?? ""),

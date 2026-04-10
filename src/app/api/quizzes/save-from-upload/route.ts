@@ -76,6 +76,7 @@ export async function POST(request: Request) {
       course,
       week,
       testType,
+      createdFromUpload: testType === "cold",
       questions: mappedQuestions,
     });
 
