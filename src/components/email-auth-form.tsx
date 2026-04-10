@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { FirebaseError } from "firebase/app";
 import {
   createUserWithEmailAndPassword,
@@ -8,10 +9,12 @@ import {
   signOut,
 } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/client";
+import { syncSessionCookie } from "@/lib/auth/session-sync";
 
 type AuthMode = "login" | "signup";
 
 export function EmailAuthForm() {
+  const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -32,12 +35,15 @@ export function EmailAuthForm() {
     setMessage("");
     try {
       if (mode === "signup") {
-        await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        const credential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+        await syncSessionCookie(credential.user);
         setMessage("Account created. You are now logged in.");
       } else {
-        await signInWithEmailAndPassword(firebaseAuth, email, password);
+        const credential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+        await syncSessionCookie(credential.user);
         setMessage("Logged in successfully.");
       }
+      router.refresh();
     } catch (error) {
       if (error instanceof FirebaseError) {
         switch (error.code) {
@@ -70,7 +76,9 @@ export function EmailAuthForm() {
     setMessage("");
     try {
       await signOut(firebaseAuth);
+      await syncSessionCookie(null);
       setMessage("Logged out.");
+      router.refresh();
     } finally {
       setBusy(false);
     }

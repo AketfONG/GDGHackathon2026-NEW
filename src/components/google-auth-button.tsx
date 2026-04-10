@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { firebaseAuth, googleProvider } from "@/lib/firebase/client";
 import { FirebaseError } from "firebase/app";
 import { onAuthStateChanged, signInWithPopup, signOut, User } from "firebase/auth";
+import { syncSessionCookie } from "@/lib/auth/session-sync";
 
 export function GoogleAuthButton() {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [busy, setBusy] = useState(false);
   const [errorText, setErrorText] = useState("");
@@ -23,7 +26,9 @@ export function GoogleAuthButton() {
     setBusy(true);
     setErrorText("");
     try {
-      await signInWithPopup(firebaseAuth, googleProvider);
+      const result = await signInWithPopup(firebaseAuth, googleProvider);
+      await syncSessionCookie(result.user);
+      router.refresh();
     } catch (error) {
       if (error instanceof FirebaseError && error.code === "auth/configuration-not-found") {
         setErrorText("Google sign-in is not enabled in Firebase Auth settings.");
@@ -41,6 +46,8 @@ export function GoogleAuthButton() {
     setErrorText("");
     try {
       await signOut(firebaseAuth);
+      await syncSessionCookie(null);
+      router.refresh();
     } finally {
       setBusy(false);
     }

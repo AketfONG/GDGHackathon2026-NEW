@@ -14,7 +14,10 @@ export function isDatabaseUnavailableError(error: unknown): boolean {
     e.code === "P1000" ||
     e.code === "P1017" ||
     e.name === "PrismaClientInitializationError" ||
+    e.name === "MongoServerError" ||
     msg.includes("can't reach database server") ||
+    msg.includes("authentication failed") ||
+    msg.includes("bad auth") ||
     msg.includes("database") ||
     msg.includes("connection")
   );
