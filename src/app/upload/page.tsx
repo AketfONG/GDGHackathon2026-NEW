@@ -67,6 +67,7 @@ export default function UploadMaterialsPage() {
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState(MOCK_UPLOADED_FILES);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedCourse) {
@@ -93,6 +94,61 @@ export default function UploadMaterialsPage() {
         },
       }));
     }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (!selectedCourse) {
+      alert("Please select a course first");
+      return;
+    }
+    if (!selectedWeek) {
+      alert("Please select a week first");
+      return;
+    }
+
+    const files = e.dataTransfer.files;
+    if (files) {
+      const newFiles = Array.from(files).map((f) => f.name);
+      setUploadedFiles((prev) => ({
+        ...prev,
+        [selectedCourse]: {
+          ...prev[selectedCourse as keyof typeof prev],
+          [selectedWeek]: [
+            ...(prev[selectedCourse as keyof typeof prev][selectedWeek as keyof typeof prev[keyof typeof prev]] ||
+              []),
+            ...newFiles,
+          ],
+        },
+      }));
+    }
+  };
+
+  const removeFile = (course: string, week: string, fileIndex: number) => {
+    setUploadedFiles((prev) => ({
+      ...prev,
+      [course]: {
+        ...prev[course as keyof typeof prev],
+        [week]: prev[course as keyof typeof prev][week as keyof typeof prev[keyof typeof prev]].filter(
+          (_, idx) => idx !== fileIndex
+        ),
+      },
+    }));
   };
 
   const selectedCourseData = MOCK_COURSES.find((c) => c.id === selectedCourse);
@@ -162,7 +218,14 @@ export default function UploadMaterialsPage() {
               Step 3: Upload Materials for {selectedCourseData?.name} - {selectedWeekData?.name}
             </h2>
             <div
-              className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center transition-colors hover:border-slate-400 hover:bg-slate-100"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`rounded-lg border-2 border-dashed p-8 text-center transition-all ${
+                isDragging
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100"
+              }`}
             >
               <div className="mb-4">
                 <svg
@@ -237,7 +300,10 @@ export default function UploadMaterialsPage() {
                                   <span className="text-lg">{getFileIcon(file)}</span>
                                   <p className="truncate text-sm font-medium text-slate-900">{file}</p>
                                 </div>
-                                <button className="rounded px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50">
+                                <button
+                                  onClick={() => removeFile(course.id, week.id, idx)}
+                                  className="rounded px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                                >
                                   ✕
                                 </button>
                               </div>
