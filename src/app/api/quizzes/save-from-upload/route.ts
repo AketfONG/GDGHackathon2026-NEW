@@ -48,13 +48,25 @@ export async function POST(request: Request) {
 
     const title = `${course} - Week ${week}: ${testTypeLabel}`;
 
-    // Map questions to MongoDB format
-    const mappedQuestions = questions.map((q) => ({
-      prompt: q.question,
-      options: q.options,
-      correctIdx: q.correctAnswerIndex,
-      explanation: q.explanation,
-    }));
+    // Map questions to MongoDB format (prompt is required in schema)
+    const mappedQuestions = questions
+      .map((q) => ({
+        prompt: String(q.question ?? "").trim(),
+        options: q.options,
+        correctIdx: q.correctAnswerIndex,
+        explanation: q.explanation,
+      }))
+      .filter((row) => row.prompt.length > 0);
+
+    if (!mappedQuestions.length) {
+      return Response.json(
+        {
+          success: false,
+          error: "No valid questions: each item needs non-empty question text.",
+        },
+        { status: 400 }
+      );
+    }
 
     // Create and save quiz
     const quiz = await QuizModel.create({
@@ -76,7 +88,7 @@ export async function POST(request: Request) {
         course,
         week,
         testType,
-        questionCount: questions.length,
+        questionCount: mappedQuestions.length,
       },
     });
   } catch (error) {

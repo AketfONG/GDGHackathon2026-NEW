@@ -16,6 +16,9 @@ const quizSchema = new Schema(
     topic: { type: String, required: true },
     difficulty: { type: String, required: true },
     questions: { type: [quizQuestionSchema], default: [] },
+    course: { type: String },
+    week: { type: String },
+    testType: { type: String, enum: ["cold", "hot", "review"] },
   },
   { timestamps: true },
 );

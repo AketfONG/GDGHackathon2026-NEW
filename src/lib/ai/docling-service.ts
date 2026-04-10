@@ -19,7 +19,7 @@ export interface DoclingConfig {
 
 const DEFAULT_CONFIG: DoclingConfig = {
   maxFileSize: 50,
-  supportedFormats: ["pdf", "ppt", "pptx", "docx", "doc"],
+  supportedFormats: ["pdf", "ppt", "pptx", "docx", "doc", "txt", "md"],
 };
 
 export async function parseDocumentWithDocling(
@@ -31,40 +31,50 @@ export async function parseDocumentWithDocling(
   images: Array<{ base64: string; description: string }>;
   metadata: { title: string; pages: number };
 }> {
-  /**
-   * Simple document text extraction
-   * For production, integrate actual Docling library or API
-   */
-
   try {
-    // For now, extract text from file buffer
-    // Convert buffer to UTF-8 string or use simple fallback
     let extractedText = "";
-    
+    let pageCount = 1;
+
     const fileExt = fileName.split(".").pop()?.toLowerCase();
-    
+
+    const extractLimit = (() => {
+      const n = parseInt(process.env.DOCUMENT_EXTRACT_MAX_CHARS || "16000", 10);
+      return Number.isFinite(n) && n >= 1000 ? Math.min(n, 200000) : 16000;
+    })();
+
     if (fileExt === "pdf") {
-      // Simple PDF text extraction (for now, extract printable characters)
-      extractedText = fileBuffer
-        .toString("latin1")
-        .replace(/[^\x20-\x7E\n]/g, " ")
-        .replace(/\s+/g, " ")
-        .substring(0, 5000); // Limit to 5000 chars
-    } else if (["docx", "pptx"].includes(fileExt || "")) {
-      // These are ZIP files, extract as text
-      extractedText = fileBuffer
-        .toString("utf-8")
-        .replace(/[^\x20-\x7E\n]/g, " ")
-        .replace(/\s+/g, " ")
-        .substring(0, 5000);
+      const { extractPdfText } = await import("@/lib/ai/extract-pdf-text");
+      const { text, pages } = await extractPdfText(fileBuffer);
+      pageCount = pages;
+      extractedText = text.substring(0, extractLimit);
+    } else if (fileExt === "docx") {
+      const { extractDocxText } = await import("@/lib/ai/extract-office-text");
+      extractedText = (await extractDocxText(fileBuffer)).substring(0, extractLimit);
+    } else if (fileExt === "pptx") {
+      const { extractPptxText } = await import("@/lib/ai/extract-office-text");
+      extractedText = (await extractPptxText(fileBuffer)).substring(0, extractLimit);
+    } else if (fileExt === "doc") {
+      extractedText =
+        "[Legacy .doc (binary Word) is not supported. In Word use Save As → .docx or export PDF, then upload.]";
+    } else if (fileExt === "ppt") {
+      extractedText =
+        "[Legacy .ppt (binary PowerPoint) is not supported. Save As → .pptx or export PDF, then upload.]";
+    } else if (fileExt === "txt" || fileExt === "md") {
+      let t = fileBuffer.toString("utf-8");
+      if (t.charCodeAt(0) === 0xfeff) t = t.slice(1);
+      extractedText = t.substring(0, extractLimit);
     } else {
-      // Text-based formats
-      extractedText = fileBuffer.toString("utf-8").substring(0, 5000);
+      extractedText = fileBuffer.toString("utf-8").substring(0, extractLimit);
     }
 
-    // Fallback if extraction failed
+    // PDFs with no text layer (scanned pages) — avoid fake placeholder that breaks quiz grounding
     if (!extractedText.trim()) {
-      extractedText = `Document: ${fileName}\n\nContent extracted from uploaded file.`;
+      if (fileExt === "pdf") {
+        extractedText =
+          `[No selectable text found in this PDF (${fileName}). It may be scanned images only — use OCR or upload a text-based PDF, .txt, or .docx.]`;
+      } else {
+        extractedText = `Document: ${fileName}\n\n(No text could be extracted from this file.)`;
+      }
     }
 
     return {
@@ -72,13 +82,14 @@ export async function parseDocumentWithDocling(
       images: [],
       metadata: {
         title: fileName.replace(/\.[^/.]+$/, ""),
-        pages: 1,
+        pages: pageCount,
       },
     };
   } catch (error) {
     console.error("Error parsing document:", error);
+    const msg = error instanceof Error ? error.message : "Unknown error";
     return {
-      markdown: `# ${fileName}\n\nDocument uploaded successfully.`,
+      markdown: `# ${fileName}\n\n[Document parse failed: ${msg}]`,
       images: [],
       metadata: {
         title: fileName.replace(/\.[^/.]+$/, ""),

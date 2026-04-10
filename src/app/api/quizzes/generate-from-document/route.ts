@@ -94,14 +94,15 @@ export async function POST(req: NextRequest) {
       parsedDoc.markdown,
       topic,
       10,
-      replicateConfig as any
+      replicateConfig as { apiToken: string; model?: string },
+      { sourceFileName: file.name }
     );
 
     return NextResponse.json({
       success: true,
       questions,
       document: {
-        title: parsedDoc.title,
+        title: parsedDoc.metadata.title,
         fileName: file.name,
       },
     });
