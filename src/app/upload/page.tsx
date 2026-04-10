@@ -4,7 +4,6 @@ import Link from "next/link";
 import { TopNav } from "@/components/top-nav";
 import { useState } from "react";
 
-// Mock courses data
 const MOCK_COURSES = [
   { id: "econ2103", name: "ECON2103" },
   { id: "bio101", name: "Biology 101" },
@@ -13,7 +12,6 @@ const MOCK_COURSES = [
   { id: "phys101", name: "Physics Mechanics" },
 ];
 
-// Mock weeks
 const MOCK_WEEKS = [
   { id: "week1", name: "Week 1" },
   { id: "week2", name: "Week 2" },
@@ -22,85 +20,118 @@ const MOCK_WEEKS = [
   { id: "week5", name: "Week 5" },
 ];
 
-// Mock file types with icons
+function buildEmptyUploads(): Record<string, Record<string, string[]>> {
+  const out: Record<string, Record<string, string[]>> = {};
+  for (const c of MOCK_COURSES) {
+    out[c.id] = {};
+    for (const w of MOCK_WEEKS) {
+      out[c.id][w.id] = [];
+    }
+  }
+  return out;
+}
+
+function weekIdToNumber(weekId: string): string {
+  const m = /^week(\d+)$/i.exec(weekId);
+  return m ? m[1] : weekId.replace(/\D/g, "") || "1";
+}
+
 const getFileIcon = (filename: string) => {
   if (filename.endsWith(".pdf")) return "📄";
   if (filename.endsWith(".txt")) return "📝";
   if (filename.endsWith(".md")) return "📋";
-  if (filename.endsWith(".docx")) return "📑";
+  if (filename.endsWith(".docx") || filename.endsWith(".doc")) return "📑";
+  if (filename.endsWith(".pptx") || filename.endsWith(".ppt")) return "📊";
   return "📎";
-};
-
-// Mock uploaded files organized by course and week
-const MOCK_UPLOADED_FILES = {
-  econ2103: {
-    week1: [],
-    week2: [],
-    week3: [],
-    week4: [],
-    week5: [],
-  },
-  bio101: {
-    week1: ["Introduction-to-Biology.pdf", "Chapter1-Notes.md"],
-    week2: ["Cell-Structure.pdf"],
-    week3: [],
-    week4: [],
-    week5: [],
-  },
-  chem201: {
-    week1: ["Periodic-Table.pdf"],
-    week2: ["Reactions-101.txt", "Bonding-Concepts.docx"],
-    week3: [],
-    week4: [],
-    week5: [],
-  },
-  math301: {
-    week1: ["Calculus-Introduction.pdf"],
-    week2: [],
-    week3: ["Derivatives-Notes.pdf"],
-    week4: [],
-    week5: ["Integration-Examples.docx"],
-  },
-  phys101: {
-    week1: ["Forces-Diagram.pdf"],
-    week2: [],
-    week3: [],
-    week4: [],
-    week5: [],
-  },
 };
 
 export default function UploadMaterialsPage() {
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
   const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState(MOCK_UPLOADED_FILES);
+  const [uploadedFiles, setUploadedFiles] = useState(buildEmptyUploads);
   const [isDragging, setIsDragging] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<{ type: "ok" | "err"; text: string } | null>(
+    null
+  );
+
+  const selectedCourseData = MOCK_COURSES.find((c) => c.id === selectedCourse);
+  const selectedWeekData = MOCK_WEEKS.find((w) => w.id === selectedWeek);
+
+  async function runColdGenerationForFiles(files: FileList | File[]) {
+    const list = Array.from(files);
+    if (!list.length) return;
+
+    if (!selectedCourse || !selectedWeek || !selectedCourseData) {
+      alert("Please select a course and week first");
+      return;
+    }
+
+    const weekNum = weekIdToNumber(selectedWeek);
+    const courseName = selectedCourseData.name;
+
+    setGenerating(true);
+    setStatusMessage(null);
+    const errors: string[] = [];
+
+    for (const file of list) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("course", courseName);
+      formData.append("week", weekNum);
+
+      try {
+        const res = await fetch("/api/quizzes/upload-generate-cold", {
+          method: "POST",
+          body: formData,
+        });
+        const data = (await res.json().catch(() => ({}))) as {
+          success?: boolean;
+          error?: string;
+        };
+        if (!res.ok || !data.success) {
+          errors.push(`${file.name}: ${data.error || res.statusText || "Failed"}`);
+          continue;
+        }
+        setUploadedFiles((prev) => ({
+          ...prev,
+          [selectedCourse]: {
+            ...prev[selectedCourse],
+            [selectedWeek]: [...(prev[selectedCourse][selectedWeek] || []), file.name],
+          },
+        }));
+      } catch (e) {
+        errors.push(`${file.name}: ${e instanceof Error ? e.message : "Network error"}`);
+      }
+    }
+
+    setGenerating(false);
+
+    if (errors.length === 0) {
+      setStatusMessage({
+        type: "ok",
+        text:
+          list.length > 1
+            ? `Cold tests generated from ${list.length} files. Open Quizzes to take them.`
+            : "Cold test generated from your file. Open Quizzes to take it.",
+      });
+    } else if (errors.length === list.length) {
+      setStatusMessage({ type: "err", text: errors.join(" · ") });
+    } else {
+      setStatusMessage({
+        type: "err",
+        text: `Partial success. Errors: ${errors.join(" · ")}`,
+      });
+    }
+  }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!selectedCourse) {
-      alert("Please select a course first");
-      return;
+    const input = e.target;
+    const files = input.files;
+    if (files?.length) {
+      void runColdGenerationForFiles(files);
     }
-    if (!selectedWeek) {
-      alert("Please select a week first");
-      return;
-    }
-
-    const files = e.target.files;
-    if (files) {
-      const newFiles = Array.from(files).map((f) => f.name);
-      setUploadedFiles((prev) => ({
-        ...prev,
-        [selectedCourse]: {
-          ...prev[selectedCourse as keyof typeof prev],
-          [selectedWeek]: [
-            ...(prev[selectedCourse as keyof typeof prev][selectedWeek as keyof typeof prev[keyof typeof prev]] ||
-              []),
-            ...newFiles,
-          ],
-        },
-      }));
-    }
+    input.value = "";
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -130,19 +161,8 @@ export default function UploadMaterialsPage() {
     }
 
     const files = e.dataTransfer.files;
-    if (files) {
-      const newFiles = Array.from(files).map((f) => f.name);
-      setUploadedFiles((prev) => ({
-        ...prev,
-        [selectedCourse]: {
-          ...prev[selectedCourse as keyof typeof prev],
-          [selectedWeek]: [
-            ...(prev[selectedCourse as keyof typeof prev][selectedWeek as keyof typeof prev[keyof typeof prev]] ||
-              []),
-            ...newFiles,
-          ],
-        },
-      }));
+    if (files?.length) {
+      void runColdGenerationForFiles(files);
     }
   };
 
@@ -150,39 +170,56 @@ export default function UploadMaterialsPage() {
     setUploadedFiles((prev) => ({
       ...prev,
       [course]: {
-        ...prev[course as keyof typeof prev],
-        [week]: prev[course as keyof typeof prev][week as keyof typeof prev[keyof typeof prev]].filter(
-          (_, idx) => idx !== fileIndex
-        ),
+        ...prev[course],
+        [week]: prev[course][week].filter((_, idx) => idx !== fileIndex),
       },
     }));
   };
-
-  const selectedCourseData = MOCK_COURSES.find((c) => c.id === selectedCourse);
-  const selectedWeekData = MOCK_WEEKS.find((w) => w.id === selectedWeek);
 
   return (
     <div className="min-h-screen bg-slate-50">
       <TopNav />
       <main className="mx-auto w-full max-w-4xl px-4 py-8">
-        {/* Header */}
         <section className="mb-8">
           <Link href="/" className="mb-4 inline-block text-blue-600 hover:text-blue-700">
             ← Back to Home
           </Link>
           <h1 className="text-3xl font-semibold text-slate-900">Upload Course Materials</h1>
           <p className="mt-2 text-slate-600">
-            Upload study materials by course and week.
+            Upload a file for the selected course and week. A <strong>cold test</strong> is generated
+            automatically from the document (requires{" "}
+            <code className="rounded bg-slate-200 px-1 text-sm">REPLICATE_API_TOKEN</code> in{" "}
+            <code className="rounded bg-slate-200 px-1 text-sm">.env.local</code> and MongoDB).
           </p>
         </section>
 
-        {/* Course Selection */}
+        {statusMessage ? (
+          <div
+            className={`mb-6 rounded-lg border p-4 text-sm ${
+              statusMessage.type === "ok"
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : "border-red-200 bg-red-50 text-red-900"
+            }`}
+          >
+            {statusMessage.text}
+            {statusMessage.type === "ok" ? (
+              <>
+                {" "}
+                <Link href="/quizzes" className="font-semibold underline">
+                  Go to Quizzes
+                </Link>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="mb-8 rounded-lg border border-slate-200 bg-white p-6">
           <h2 className="mb-4 text-base font-semibold text-slate-900">Step 1: Select Your Course</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {MOCK_COURSES.map((course) => (
               <button
                 key={course.id}
+                type="button"
                 onClick={() => setSelectedCourse(course.id)}
                 className={`rounded-lg border-2 p-4 text-left transition-all ${
                   selectedCourse === course.id
@@ -196,7 +233,6 @@ export default function UploadMaterialsPage() {
           </div>
         </div>
 
-        {/* Week Selection */}
         {selectedCourse && (
           <div className="mb-8 rounded-lg border border-slate-200 bg-white p-6">
             <h2 className="mb-4 text-base font-semibold text-slate-900">Step 2: Select Your Week</h2>
@@ -204,6 +240,7 @@ export default function UploadMaterialsPage() {
               {MOCK_WEEKS.map((week) => (
                 <button
                   key={week.id}
+                  type="button"
                   onClick={() => setSelectedWeek(week.id)}
                   className={`rounded-lg border-2 p-4 text-left transition-all ${
                     selectedWeek === week.id
@@ -218,7 +255,6 @@ export default function UploadMaterialsPage() {
           </div>
         )}
 
-        {/* File Upload Section */}
         {selectedCourse && selectedWeek ? (
           <div className="mb-8">
             <h2 className="mb-4 text-base font-semibold text-slate-900">
@@ -232,7 +268,7 @@ export default function UploadMaterialsPage() {
                 isDragging
                   ? "border-blue-500 bg-blue-50"
                   : "border-slate-300 bg-slate-50 hover:border-slate-400 hover:bg-slate-100"
-              }`}
+              } ${generating ? "pointer-events-none opacity-70" : ""}`}
             >
               <div className="mb-4">
                 <svg
@@ -251,22 +287,25 @@ export default function UploadMaterialsPage() {
               </div>
               <h3 className="text-lg font-semibold text-slate-900">Upload Study Materials</h3>
               <p className="mt-2 text-sm text-slate-600">
-                Drag and drop your files here, or click to select
+                Each file triggers AI generation of a cold test (may take up to a minute).
               </p>
-              <div className="mt-4 flex items-center justify-center gap-2">
+              <div className="mt-4 flex flex-col items-center justify-center gap-2">
                 <input
                   id="file-input"
                   type="file"
-                  accept=".txt,.pdf,.md,.docx"
+                  accept=".txt,.pdf,.md,.doc,.docx,.ppt,.pptx"
                   onChange={handleFileUpload}
                   multiple
+                  disabled={generating}
                   className="hidden"
                 />
                 <button
+                  type="button"
+                  disabled={generating}
                   onClick={() => document.getElementById("file-input")?.click()}
-                  className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                  className="rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
                 >
-                  Select Files
+                  {generating ? "Generating cold test…" : "Select Files"}
                 </button>
               </div>
             </div>
@@ -279,7 +318,6 @@ export default function UploadMaterialsPage() {
           </div>
         )}
 
-        {/* Uploaded Files by Course and Week */}
         <section className="rounded-lg border border-slate-200 bg-white p-6">
           <h2 className="mb-4 text-base font-semibold text-slate-900">Step 4: Your Uploaded Files</h2>
           <div className="space-y-8">
@@ -288,10 +326,7 @@ export default function UploadMaterialsPage() {
                 <h3 className="mb-4 text-base font-semibold text-slate-900">{course.name}</h3>
                 <div className="space-y-4">
                   {MOCK_WEEKS.map((week) => {
-                    const weekFiles =
-                      uploadedFiles[course.id as keyof typeof uploadedFiles][
-                        week.id as keyof typeof uploadedFiles[keyof typeof uploadedFiles]
-                      ] || [];
+                    const weekFiles = uploadedFiles[course.id]?.[week.id] ?? [];
 
                     return (
                       <div key={week.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -303,13 +338,14 @@ export default function UploadMaterialsPage() {
                                 key={idx}
                                 className="flex items-center justify-between rounded bg-white p-2 hover:bg-slate-100"
                               >
-                                <div className="flex items-center gap-2">
+                                <div className="flex min-w-0 items-center gap-2">
                                   <span className="text-lg">{getFileIcon(file)}</span>
                                   <p className="truncate text-sm font-medium text-slate-900">{file}</p>
                                 </div>
                                 <button
+                                  type="button"
                                   onClick={() => removeFile(course.id, week.id, idx)}
-                                  className="rounded px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                                  className="shrink-0 rounded px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
                                 >
                                   ✕
                                 </button>
@@ -329,24 +365,23 @@ export default function UploadMaterialsPage() {
           </div>
         </section>
 
-        {/* Supported Formats */}
         <section className="mt-8 rounded-lg border border-slate-200 bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold text-slate-900">Supported Formats</h2>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-lg bg-slate-50 p-4">
-              <h3 className="font-semibold text-slate-900">Text Formats</h3>
+              <h3 className="font-semibold text-slate-900">Text & Office</h3>
               <ul className="mt-2 list-inside space-y-1 text-sm text-slate-600">
                 <li>• Plain text (.txt)</li>
                 <li>• Markdown (.md)</li>
-                <li>• Word documents (.docx)</li>
+                <li>• Word (.doc, .docx)</li>
+                <li>• PowerPoint (.ppt, .pptx)</li>
               </ul>
             </div>
             <div className="rounded-lg bg-slate-50 p-4">
-              <h3 className="font-semibold text-slate-900">Document Formats</h3>
+              <h3 className="font-semibold text-slate-900">Documents</h3>
               <ul className="mt-2 list-inside space-y-1 text-sm text-slate-600">
-                <li>• PDF files (.pdf)</li>
-                <li>• Large documents supported</li>
-                <li>• Automatic extraction</li>
+                <li>• PDF (.pdf)</li>
+                <li>• Content is summarized for the AI (see server limits)</li>
               </ul>
             </div>
           </div>

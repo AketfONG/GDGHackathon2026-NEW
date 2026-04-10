@@ -154,25 +154,37 @@ export function QuizList({ quizzes }: QuizListProps) {
                             )}
                           </div>
                         </div>
-                        <div className="mt-3 flex gap-2">
+                        <div className="mt-3 flex flex-wrap gap-2">
                           {quiz.status === "not-started" && (
-                            <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                            <Link
+                              href={`/quizzes/${encodeURIComponent(quiz.id)}`}
+                              className="inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                            >
                               Start Quiz
-                            </button>
+                            </Link>
                           )}
                           {quiz.status === "in-progress" && (
-                            <button className="rounded-md bg-yellow-600 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-700">
+                            <Link
+                              href={`/quizzes/${encodeURIComponent(quiz.id)}`}
+                              className="inline-flex items-center justify-center rounded-md bg-yellow-600 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-700"
+                            >
                               Continue
-                            </button>
+                            </Link>
                           )}
                           {quiz.status === "completed" && (
                             <>
-                              <button className="rounded-md bg-slate-600 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">
+                              <Link
+                                href={`/quizzes/${encodeURIComponent(quiz.id)}`}
+                                className="inline-flex items-center justify-center rounded-md bg-slate-600 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+                              >
                                 Review
-                              </button>
-                              <button className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                              </Link>
+                              <Link
+                                href={`/quizzes/${encodeURIComponent(quiz.id)}`}
+                                className="inline-flex items-center justify-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                              >
                                 Retake
-                              </button>
+                              </Link>
                             </>
                           )}
                         </div>
@@ -235,11 +247,12 @@ export function QuizList({ quizzes }: QuizListProps) {
                           </div>
                         </div>
                         <div className="mt-3 flex gap-2">
-                          <button className="flex-1 rounded-md bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700">
-                            {quiz.status === "completed"
-                              ? "Practice Again"
-                              : "Start Review"}
-                          </button>
+                          <Link
+                            href={`/quizzes/${encodeURIComponent(quiz.id)}`}
+                            className="inline-flex flex-1 items-center justify-center rounded-md bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
+                          >
+                            {quiz.status === "completed" ? "Practice Again" : "Start Review"}
+                          </Link>
                         </div>
                       </div>
                     ))}
