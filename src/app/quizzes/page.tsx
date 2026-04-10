@@ -12,6 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function QuizzesPage() {
   let dbOffline = isBackendDisabled();
+  let dbOfflineDetail: string | undefined;
   let generatedQuizzes: CourseQuiz[] = [];
   let legacyQuizzes: UiQuiz[] = [];
 
@@ -54,6 +55,9 @@ export default async function QuizzesPage() {
     } catch (error) {
       if (isDatabaseUnavailableError(error)) {
         dbOffline = true;
+        if (error instanceof Error && error.message) {
+          dbOfflineDetail = error.message;
+        }
       } else {
         throw error;
       }
@@ -95,9 +99,11 @@ export default async function QuizzesPage() {
 
         {dbOffline ? (
           <>
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 mb-8">
+            <div className="mb-8 space-y-3">
+              <DbOfflineNotice detail={dbOfflineDetail} />
               <p className="text-sm text-amber-900">
-                Backend unavailable. Check your MongoDB connection to see your generated quizzes.
+                Generated quizzes from the database are hidden while the connection is unavailable.
+                The list below is a sample only.
               </p>
             </div>
             <QuizList

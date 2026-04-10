@@ -1,11 +1,13 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI;
+const rawUri = process.env.MONGODB_URI;
+const MONGODB_URI = typeof rawUri === "string" ? rawUri.trim() : undefined;
 
-if (!MONGODB_URI) {
-  throw new Error("Missing MONGODB_URI. Set it in .env.local.");
+const URI_PLACEHOLDERS = ["<db_password>", "<password>", "<your_password>"];
+
+function uriContainsPlaceholder(uri: string): boolean {
+  return URI_PLACEHOLDERS.some((p) => uri.includes(p));
 }
-const RESOLVED_MONGODB_URI: string = MONGODB_URI;
 
 type MongooseCache = {
   conn: typeof mongoose | null;
@@ -23,12 +25,32 @@ if (!global.mongooseCache) {
 }
 
 export async function connectToDatabase() {
-  if (cached.conn) return cached.conn;
-
-  if (!cached.promise) {
-    cached.promise = mongoose.connect(RESOLVED_MONGODB_URI);
+  if (!MONGODB_URI) {
+    throw new Error(
+      "MongoDB connection not configured: set MONGODB_URI in .env.local."
+    );
   }
 
-  cached.conn = await cached.promise;
-  return cached.conn;
+  if (uriContainsPlaceholder(MONGODB_URI)) {
+    throw new Error(
+      "MongoDB connection failed: MONGODB_URI still contains a template placeholder such as <db_password>. Replace it with your Atlas database user password (URL-encode special characters)."
+    );
+  }
+
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGODB_URI);
+  }
+
+  try {
+    cached.conn = await cached.promise;
+    return cached.conn;
+  } catch (err) {
+    cached.promise = null;
+    cached.conn = null;
+    throw err;
+  }
 }

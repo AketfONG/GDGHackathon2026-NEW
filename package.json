@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:start": "docker compose up -d postgres",
+    "mongo:start": "docker compose up -d mongo",
     "db:stop": "docker compose down",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
