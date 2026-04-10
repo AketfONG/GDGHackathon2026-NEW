@@ -11,6 +11,7 @@ const links = [
   { href: "/upload", label: "Upload Materials" },
   { href: "/quizzes", label: "Quizzes" },
   { href: "/schedule", label: "Schedule" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export function TopNav() {
