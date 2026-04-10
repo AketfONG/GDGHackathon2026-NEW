@@ -143,6 +143,58 @@ function contentForMcqPrompt(raw: string): string {
   return s;
 }
 
+/**
+ * LLMs often append notes after the closing `]`. Using `lastIndexOf("]")` or a greedy
+ * regex then feeds trailing prose into `JSON.parse` → "Unexpected non-whitespace character after JSON".
+ * This returns the first top-level `[` … `]` span with brackets balanced outside of strings.
+ */
+function extractFirstJsonArray(raw: string): string | null {
+  const start = raw.indexOf("[");
+  if (start === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+
+  for (let i = start; i < raw.length; i++) {
+    const c = raw[i]!;
+
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (c === "\\") {
+        escape = true;
+        continue;
+      }
+      if (c === '"') {
+        inString = false;
+        continue;
+      }
+      continue;
+    }
+
+    if (c === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (c === "[") {
+      depth++;
+      continue;
+    }
+    if (c === "]") {
+      depth--;
+      if (depth === 0) {
+        return raw.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
 type RawMcqBlob = {
   question: string;
   options: string[];
@@ -269,27 +321,31 @@ Format the response as a VALID JSON array ONLY. No markdown fences, no commentar
       .replace(/```\n?/g, "")
       .trim();
 
-    // Try to find JSON array in response
-    let jsonMatch = response.match(/\[\s*\{[\s\S]*\}\s*\]/);
-    
-    if (!jsonMatch) {
-      // Try to find just the array start and end
-      const startIdx = response.indexOf("[");
-      const endIdx = response.lastIndexOf("]");
-      
-      if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-        jsonMatch = [response.substring(startIdx, endIdx + 1)];
-      }
-    }
+    let jsonSlice = extractFirstJsonArray(response);
 
-    if (!jsonMatch) {
-      console.error("Response was:", response);
+    if (!jsonSlice) {
+      console.error("Response was:", response.slice(0, 2000), response.length > 2000 ? "…" : "");
       throw new Error(
-        "Could not find JSON array in response. Response may not be properly formatted."
+        "Could not find a JSON array in the model response. Response may not be properly formatted."
       );
     }
 
-    const questions = JSON.parse(jsonMatch[0]);
+    let questions: unknown;
+    try {
+      questions = JSON.parse(jsonSlice);
+    } catch (e) {
+      // Retry once: trailing commas before `]` (invalid JSON) — only if first parse fails
+      try {
+        questions = JSON.parse(jsonSlice.replace(/,\s*\]/g, "]"));
+      } catch {
+        console.error("MCQ JSON parse failed; slice length:", jsonSlice.length);
+        throw new Error(
+          e instanceof Error
+            ? `Could not parse questions JSON: ${e.message}`
+            : "Could not parse questions JSON from model response."
+        );
+      }
+    }
 
     if (!Array.isArray(questions)) {
       throw new Error("Response is not an array of questions");

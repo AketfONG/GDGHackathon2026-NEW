@@ -73,9 +73,14 @@ export function QuizList({ quizzes }: QuizListProps) {
 
   if (Object.keys(courseGroups).length === 0) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-12 text-center">
-        <p className="text-slate-600">
-          No quizzes yet. Upload course materials above to generate quizzes!
+      <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+        <p className="text-lg text-slate-600">No quizzes yet</p>
+        <p className="mt-2 text-sm text-slate-500">
+          Upload course materials on the{" "}
+          <Link href="/upload" className="font-semibold text-blue-600 underline hover:text-blue-700">
+            Upload Materials
+          </Link>{" "}
+          page to generate your first cold test.
         </p>
       </div>
     );

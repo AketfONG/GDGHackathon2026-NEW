@@ -98,28 +98,17 @@ export default async function QuizzesPage() {
         </div>
 
         {dbOffline ? (
-          <>
-            <div className="mb-8 space-y-3">
-              <DbOfflineNotice detail={dbOfflineDetail} />
-              <p className="text-sm text-amber-900">
-                Generated quizzes from the database are hidden while the connection is unavailable.
-                The list below is a sample only.
+          <div className="mb-8 space-y-3">
+            <DbOfflineNotice detail={dbOfflineDetail} />
+            <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+              <p className="text-lg text-slate-600">
+                Quizzes are unavailable while the database is offline.
+              </p>
+              <p className="mt-2 text-sm text-slate-500">
+                Fix <code className="rounded bg-slate-200 px-1 text-xs">MONGODB_URI</code>, then refresh.
               </p>
             </div>
-            <QuizList
-              quizzes={[
-                {
-                  id: "econ-w1-cold",
-                  course: "ECON2103",
-                  week: 1,
-                  testType: "cold",
-                  title: "Week 1: Microeconomics - Cold Test",
-                  status: "not-started",
-                  dueDate: "2026-04-14",
-                },
-              ]}
-            />
-          </>
+          </div>
         ) : generatedQuizzes.length > 0 ? (
           <QuizList quizzes={generatedQuizzes} />
         ) : legacyQuizzes.length > 0 ? (
@@ -147,62 +136,9 @@ export default async function QuizzesPage() {
             </div>
           </>
         ) : (
-          <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-12 text-center">
-            <p className="text-lg text-slate-600 mb-2">
-              No tests available yet
-            </p>
-            <p className="text-sm text-slate-500">
-              Upload course materials in the <span className="font-semibold">Upload Materials</span> tab to generate quizzes
-            </p>
-          </div>
-        )}
-
-        {/* Sample Quiz Structure (for demonstration) */}
-        {!dbOffline && generatedQuizzes.length === 0 && legacyQuizzes.length === 0 && (
-          <div className="border-t border-slate-200 pt-8">
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">
-              Example Quiz Structure
-            </h2>
-            <QuizList
-              quizzes={[
-                {
-                  id: "ex1",
-                  course: "ECON2103",
-                  week: 1,
-                  testType: "cold",
-                  title: "Week 1: Microeconomics - Cold Test",
-                  status: "not-started",
-                  dueDate: "2026-04-14",
-                },
-                {
-                  id: "ex2",
-                  course: "ECON2103",
-                  week: 2,
-                  testType: "hot",
-                  title: "Week 1: Microeconomics - Hot Test",
-                  status: "not-started",
-                  dueDate: "2026-04-21",
-                },
-                {
-                  id: "ex3",
-                  course: "ECON2103",
-                  testType: "review",
-                  topic: "Supply & Demand - Unclear Concepts",
-                  title: "Review: Market Equilibrium Practice",
-                  status: "not-started",
-                },
-              ]}
-            />
-          </div>
+          <QuizList quizzes={[]} />
         )}
       </main>
     </div>
   );
-}
-
-// Helper to convert legacy quizzes to new format
-function convertToLegacyQuizzes(
-  quizzes: UiQuiz[]
-): UiQuiz[] {
-  return quizzes;
 }
