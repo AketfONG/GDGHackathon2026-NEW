@@ -57,7 +57,7 @@ function prepareQuestionList(
   return qs;
 }
 
-export function QuizAttemptForm({ quiz }: { quiz: UiQuiz }) {
+export function QuizAttemptForm({ quiz, isHotFollowup = false }: { quiz: UiQuiz; isHotFollowup?: boolean }) {
   const router = useRouter();
   const [settings] = useUserSettings();
   const startedAtRef = useRef<number>(Date.now());
@@ -137,7 +137,10 @@ export function QuizAttemptForm({ quiz }: { quiz: UiQuiz }) {
 
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch(`/api/quizzes/${encodeURIComponent(quiz.id)}/attempt`, {
+      const endpoint = isHotFollowup
+        ? `/api/quizzes/${encodeURIComponent(quiz.id)}/attempt?mode=hot-followup`
+        : `/api/quizzes/${encodeURIComponent(quiz.id)}/attempt`;
+      const res = await fetch(endpoint, {
         method: "POST",
         credentials: "include",
         headers: {
