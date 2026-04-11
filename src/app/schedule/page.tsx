@@ -1,6 +1,12 @@
 "use client";
 
 import { TopNav } from "@/components/top-nav";
+import type { IcsEventView } from "@/components/dashboard-calendar-quizzes";
+import { IcsUploadButton } from "@/components/ics-upload-button";
+import { getScheduledCourseQuizzes, getScheduledStudyTasks } from "@/lib/scheduled-quizzes";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   getScheduledCourseQuizzes,
   getScheduledStudyTasks,
@@ -78,14 +84,48 @@ const getTypeLabel = (type: string) => {
   }
 };
 
+function formatImportedEventTime(isoStart: string, isoEnd: string) {
+  const start = new Date(isoStart);
+  const end = new Date(isoEnd);
+  const sk = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
+  const ek = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+  if (sk === ek) {
+    return `${start.toLocaleString(undefined, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })} – ${end.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}`;
+  }
+  return `${start.toLocaleString()} → ${end.toLocaleString()}`;
+}
+
+type CalendarImportClient = {
+  fileName: string;
+  importedAt: string;
+  events: IcsEventView[];
+};
+
 export default function SchedulePage() {
+  const router = useRouter();
   const [currentDate, setCurrentDate] = useState(() => {
     const n = new Date();
     return new Date(n.getFullYear(), n.getMonth(), 1);
   });
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<StudyTask | null>(null);
+  const [icsImport, setIcsImport] = useState<CalendarImportClient | null>(null);
+  const [icsMsg, setIcsMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
+  const studyPlan = useMemo(() => {
+    const tasks = getScheduledStudyTasks();
+    const quizById = new Map(getScheduledCourseQuizzes().map((q) => [q.id, q]));
+    return tasks.map((t) => {
+      const cq = quizById.get(t.id);
+      if (t.type === "review_quiz" && cq?.testType === "review") {
+        const sub = cq.subtopic?.trim();
+        return { ...t, unclearConcepts: sub ? [sub] : [] };
   const [studyPlan, setStudyPlan] = useState<StudyTask[]>(() =>
     enrichTasksWithReviewConcepts(getScheduledStudyTasks()),
   );
@@ -107,6 +147,58 @@ export default function SchedulePage() {
       cancelled = true;
     };
   }, []);
+
+  const loadIcs = useCallback(async () => {
+    const res = await fetch("/api/calendar/ics", { credentials: "include" });
+    if (!res.ok) {
+      setIcsImport(null);
+      return;
+    }
+    const data = (await res.json()) as { import: CalendarImportClient | null };
+    setIcsImport(data.import ?? null);
+  }, []);
+
+  useEffect(() => {
+    void loadIcs();
+  }, [loadIcs]);
+
+  const icsByDate = useMemo(() => {
+    const m: Record<string, IcsEventView[]> = {};
+    for (const e of icsImport?.events ?? []) {
+      const d = new Date(e.start);
+      const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (!m[k]) m[k] = [];
+      m[k].push(e);
+    }
+    for (const k of Object.keys(m)) {
+      m[k].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    }
+    return m;
+  }, [icsImport]);
+
+  async function uploadIcsFile(file: File) {
+    setIcsMsg(null);
+    const fd = new FormData();
+    fd.set("file", file);
+    const res = await fetch("/api/calendar/ics", { method: "POST", body: fd, credentials: "include" });
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      count?: number;
+      backendDisabled?: boolean;
+      message?: string;
+    };
+    if (!res.ok) {
+      const err =
+        data.backendDisabled && data.message
+          ? data.message
+          : data.error ?? "Upload failed (is the database running?)";
+      setIcsMsg({ kind: "err", text: err });
+      return;
+    }
+    await loadIcs();
+    setIcsMsg({ kind: "ok", text: `Imported ${data.count ?? 0} events from your calendar.` });
+    router.refresh();
+  }
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -137,6 +229,7 @@ export default function SchedulePage() {
   }
 
   const selectedTasks = selectedDate ? tasksByDate[selectedDate] || [] : [];
+  const icsForSelectedDay = selectedDate ? icsByDate[selectedDate] ?? [] : [];
   const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
@@ -165,7 +258,9 @@ export default function SchedulePage() {
           <h1 className="text-3xl font-semibold text-slate-900">Study Schedule</h1>
           <p className="mt-2 text-slate-600">
             Click a date to view tasks for that day. Hot and review quizzes for several courses are pre-filled; review
-            tasks list focus topics tied to each review quiz.
+            tasks list focus topics tied to each review quiz. Upload an{" "}
+            <code className="rounded bg-slate-200 px-1 text-sm">.ics</code> file to overlay your real calendar (classes,
+            deadlines) on the same month view.
           </p>
         </section>
 
@@ -173,6 +268,32 @@ export default function SchedulePage() {
           {/* Calendar - Left */}
           <div className="lg:col-span-2">
             <div className="rounded-lg border border-slate-200 bg-white p-6">
+              <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <h3 className="text-sm font-semibold text-slate-900">Imported calendar</h3>
+                <p className="mt-1 text-xs text-slate-600">
+                  Same storage as the dashboard calendar — one file per account replaces the previous import.
+                </p>
+                <div className="mt-3 max-w-md">
+                  <IcsUploadButton variant="compact" label="Upload .ics" onFile={uploadIcsFile} />
+                </div>
+                {icsMsg ? (
+                  <p
+                    className={`mt-2 text-sm ${icsMsg.kind === "ok" ? "text-emerald-800" : "text-rose-700"}`}
+                    role="status"
+                  >
+                    {icsMsg.text}
+                  </p>
+                ) : null}
+                {icsImport ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Current: <span className="font-medium text-slate-700">{icsImport.fileName}</span> ·{" "}
+                    {new Date(icsImport.importedAt).toLocaleString()}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-slate-500">No file uploaded yet, or sign in with an account that has MongoDB enabled.</p>
+                )}
+              </div>
+
               {/* Month Navigation */}
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-slate-900">
@@ -216,9 +337,21 @@ export default function SchedulePage() {
                   }
 
                   const dateString = getDateString(day);
-                  const hasTasks = tasksByDate[dateString] && tasksByDate[dateString].length > 0;
+                  const dayTasks = tasksByDate[dateString];
+                  const hasTasks = Boolean(dayTasks && dayTasks.length > 0);
+                  const icsForDay = icsByDate[dateString] ?? [];
+                  const hasIcs = icsForDay.length > 0;
                   const isSelected = selectedDate === dateString;
-                  const taskCount = tasksByDate[dateString]?.length || 0;
+                  const taskCount = dayTasks?.length || 0;
+
+                  const cellBorder =
+                    isSelected
+                      ? "border-blue-500 bg-blue-50"
+                      : hasTasks
+                        ? "border-blue-300 bg-blue-100 hover:border-blue-400"
+                        : hasIcs
+                          ? "border-emerald-300 bg-emerald-50 hover:border-emerald-400"
+                          : "border-slate-200 bg-white hover:border-slate-300";
 
                   return (
                     <button
@@ -227,17 +360,36 @@ export default function SchedulePage() {
                         setSelectedDate(isSelected ? null : dateString);
                         setSelectedTask(null);
                       }}
-                      className={`h-24 rounded-lg border-2 p-2 text-left transition-all ${
-                        isSelected
-                          ? "border-blue-500 bg-blue-50"
-                          : hasTasks
-                            ? "border-blue-300 bg-blue-100 hover:border-blue-400"
-                            : "border-slate-200 bg-white hover:border-slate-300"
-                      }`}
+                      className={`h-24 rounded-lg border-2 p-2 text-left transition-all ${cellBorder}`}
                     >
                       <p className="font-semibold text-slate-900">{day}</p>
-                      {hasTasks && (
+                      {(hasTasks || hasIcs) && (
                         <div className="mt-1 space-y-1">
+                          {hasTasks ? (
+                            <>
+                              <p className="text-xs font-medium text-blue-700">
+                                {taskCount} task{taskCount !== 1 ? "s" : ""}
+                              </p>
+                              <div className="flex flex-wrap gap-1">
+                                {dayTasks!.slice(0, 2).map((task) => {
+                                  const colors = getTypeColor(task.type);
+                                  return (
+                                    <span
+                                      key={task.id}
+                                      className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text}`}
+                                    >
+                                      {getTypeLabel(task.type).split(" ")[0]}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          ) : null}
+                          {hasIcs ? (
+                            <p className="text-xs font-medium text-emerald-800">
+                              {icsForDay.length} cal event{icsForDay.length !== 1 ? "s" : ""}
+                            </p>
+                          ) : null}
                           <p className="text-xs font-medium text-blue-700">{taskCount} task{taskCount !== 1 ? "s" : ""}</p>
                           <div className="flex flex-wrap gap-1">
                             {tasksByDate[dateString].slice(0, 2).map((task) => {
@@ -418,6 +570,26 @@ export default function SchedulePage() {
                     )}
                   </h2>
 
+                  {selectedDate && icsForSelectedDay.length > 0 ? (
+                    <div className="mb-4 space-y-2">
+                      <h3 className="text-sm font-semibold text-emerald-900">Imported calendar</h3>
+                      <ul className="space-y-2">
+                        {icsForSelectedDay.map((e) => (
+                          <li
+                            key={e.uid}
+                            className="rounded-lg border border-emerald-200 bg-emerald-50/80 px-3 py-2 text-sm"
+                          >
+                            <p className="font-medium text-slate-900">{e.title}</p>
+                            <p className="text-xs text-slate-600">
+                              {formatImportedEventTime(e.start, e.end)}
+                              {e.location ? ` · ${e.location}` : ""}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
                   {selectedDate && selectedTasks.length > 0 ? (
                     <div className="space-y-3">
                       {selectedTasks.map((task) => {
@@ -458,30 +630,38 @@ export default function SchedulePage() {
                         );
                       })}
                     </div>
-                  ) : selectedDate && selectedTasks.length === 0 ? (
-                    <p className="text-center text-slate-500">No tasks scheduled</p>
-                  ) : (
-                    <p className="text-center text-slate-400">Click on a date to see tasks</p>
-                  )}
+                  ) : null}
+
+                  {selectedDate && selectedTasks.length === 0 && icsForSelectedDay.length === 0 ? (
+                    <p className="text-center text-slate-500">No tasks or calendar events</p>
+                  ) : null}
+
+                  {!selectedDate ? (
+                    <p className="text-center text-slate-400">Click on a date to see tasks and imported events</p>
+                  ) : null}
 
                   {/* Legend */}
                   <div className="mt-6 space-y-2 border-t border-slate-200 pt-4">
-                    <p className="text-xs font-semibold text-slate-600">TASK TYPES</p>
+                    <p className="text-xs font-semibold text-slate-600">LEGEND</p>
                     <div className="space-y-1.5">
                       <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded bg-red-100"></div>
+                        <div className="h-3 w-3 rounded bg-emerald-100 ring-1 ring-emerald-300" />
+                        <span className="text-xs text-slate-600">Imported .ics (calendar)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-3 w-3 rounded bg-red-100" />
                         <span className="text-xs text-slate-600">Hot Quiz</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded bg-blue-100"></div>
+                        <div className="h-3 w-3 rounded bg-blue-100" />
                         <span className="text-xs text-slate-600">Cold Quiz</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded bg-green-100"></div>
+                        <div className="h-3 w-3 rounded bg-green-100" />
                         <span className="text-xs text-slate-600">Review Quiz</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded bg-purple-100"></div>
+                        <div className="h-3 w-3 rounded bg-purple-100" />
                         <span className="text-xs text-slate-600">Study</span>
                       </div>
                     </div>

@@ -57,6 +57,8 @@ export function EmailAuthForm() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const auth = firebaseAuth;
+    if (!auth) return;
     setBusy(true);
     setMessage("");
     try {
@@ -111,6 +113,8 @@ export function EmailAuthForm() {
     setBusy(true);
     setMessage("");
     try {
+      const auth = firebaseAuth;
+      if (!auth) return;
       await signOut(auth);
       await syncSessionCookie(null);
       setMessage("Logged out.");

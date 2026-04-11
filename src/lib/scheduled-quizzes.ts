@@ -264,6 +264,8 @@ export function getUpcomingReviewQuizConcepts(
 ): { quizId: string; course: string; concept: string; dueDate: string }[] {
   const today = localDateString(referenceDate);
   return getScheduledCourseQuizzes(referenceDate)
+    .filter((q) => q.testType === "review" && q.dueDate != null && q.dueDate >= today)
+    .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? "") || a.course.localeCompare(b.course))
     .filter(
       (q) =>
         q.testType === "review" &&

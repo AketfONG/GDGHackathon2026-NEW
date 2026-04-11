@@ -1,9 +1,12 @@
 import { ensureDemoUser } from "@/lib/demo-user";
 import { TopNav } from "@/components/top-nav";
 import { DbOfflineNotice } from "@/components/db-offline-notice";
+import { DashboardCalendarImportBar } from "@/components/dashboard-calendar-import-bar";
+import { DashboardCalendarAndQuizzes } from "@/components/dashboard-calendar-quizzes";
 import { isDatabaseUnavailableError } from "@/lib/db-health";
 import { isBackendDisabled } from "@/lib/backend-toggle";
 import { connectToDatabase } from "@/lib/mongodb";
+import { CalendarImportModel } from "@/models/CalendarImport";
 import { DriftAssessmentModel } from "@/models/DriftAssessment";
 import { QuizAttemptModel } from "@/models/QuizAttempt";
 import { InterventionActionModel } from "@/models/InterventionAction";
@@ -18,17 +21,23 @@ export default async function DashboardPage() {
   let attempts: Awaited<ReturnType<typeof QuizAttemptModel.find>> = [];
   let interventions: Awaited<ReturnType<typeof InterventionActionModel.find>> = [];
   let adherence: Awaited<ReturnType<typeof ScheduleAdherenceModel.findOne>> = null;
+  let calendarImport: Awaited<ReturnType<typeof CalendarImportModel.findOne>> = null;
 
   if (!dbOffline) {
     try {
       await connectToDatabase();
       const user = await ensureDemoUser();
       const userId = new Types.ObjectId(String(user._id));
-      [latestAssessment, attempts, interventions, adherence] = await Promise.all([
+      [latestAssessment, attempts, interventions, adherence, calendarImport] = await Promise.all([
         DriftAssessmentModel.findOne({ userId }).sort({ assessedAt: -1 }).lean(),
-        QuizAttemptModel.find({ userId }).sort({ submittedAt: -1 }).limit(5).lean(),
+        QuizAttemptModel.find({ userId })
+          .sort({ submittedAt: -1 })
+          .limit(15)
+          .populate("quizId", "title")
+          .lean(),
         InterventionActionModel.find({ userId }).sort({ createdAt: -1 }).limit(5).lean(),
         ScheduleAdherenceModel.findOne({ userId }).sort({ createdAt: -1 }).lean(),
+        CalendarImportModel.findOne({ userId }).lean(),
       ]);
     } catch (error) {
       if (isDatabaseUnavailableError(error)) {
@@ -39,19 +48,57 @@ export default async function DashboardPage() {
     }
   }
 
+  const avgAttempts = attempts.slice(0, 5);
   const avgScore =
-    attempts.length === 0
+    avgAttempts.length === 0
       ? 0
-      : Math.round((attempts.reduce((acc, curr) => acc + curr.score, 0) / attempts.length) * 100);
+      : Math.round((avgAttempts.reduce((acc, curr) => acc + curr.score, 0) / avgAttempts.length) * 100);
   const reasonList = Array.isArray(latestAssessment?.reasons)
     ? (latestAssessment.reasons as string[])
     : [];
+
+  const quizAttemptViews = attempts.map((a) => {
+    const quiz = a.quizId as { title?: string } | Types.ObjectId | undefined;
+    const title =
+      quiz && typeof quiz === "object" && "title" in quiz && typeof quiz.title === "string"
+        ? quiz.title
+        : "Quiz";
+    return {
+      id: String(a._id),
+      title,
+      submittedAt: (a.submittedAt instanceof Date ? a.submittedAt : new Date(a.submittedAt)).toISOString(),
+      scorePct: Math.round(Number(a.score) * 100),
+    };
+  });
+
+  const calendarImportProps = calendarImport
+    ? {
+        fileName: calendarImport.fileName,
+        importedAt: (
+          calendarImport.importedAt instanceof Date
+            ? calendarImport.importedAt
+            : new Date(calendarImport.importedAt)
+        ).toISOString(),
+        events: calendarImport.events.map(
+          (e: { uid: string; title: string; start: Date; end: Date; location: string | null | undefined }) => ({
+            uid: e.uid,
+            title: e.title,
+            start: (e.start instanceof Date ? e.start : new Date(e.start)).toISOString(),
+            end: (e.end instanceof Date ? e.end : new Date(e.end)).toISOString(),
+            location: e.location ?? null,
+          }),
+        ),
+      }
+    : null;
+
+  const calendarStorageReady = !dbOffline;
 
   return (
     <div className="min-h-screen">
       <TopNav />
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-8">
         <h1 className="text-2xl font-semibold">Student Dashboard</h1>
+        <DashboardCalendarImportBar calendarStorageReady={calendarStorageReady} />
         {dbOffline ? <DbOfflineNotice /> : null}
         {!dbOffline ? (
           <>
@@ -91,6 +138,12 @@ export default async function DashboardPage() {
             </section>
           </>
         ) : null}
+
+        <DashboardCalendarAndQuizzes
+          initialImport={calendarImportProps}
+          quizAttempts={quizAttemptViews}
+          calendarStorageReady={calendarStorageReady}
+        />
       </main>
     </div>
   );
