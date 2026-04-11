@@ -1,4 +1,5 @@
 import type { CourseQuiz } from "@/components/quiz-list";
+import { addDaysToLocalYmd } from "@/lib/calendar-dates";
 
 /** YYYY-MM-DD in local timezone */
 export function addDaysLocalDateString(base: Date, days: number): string {
@@ -46,6 +47,19 @@ export type ScheduledStudyTask = {
   time: string;
   duration: string;
   description: string;
+  /** When set, links use this path instead of `/quizzes/[id]` (e.g. browse cold materials). */
+  externalQuizHref?: string;
+};
+
+export function taskQuizHref(task: ScheduledStudyTask): string {
+  return task.externalQuizHref ?? `/quizzes/${encodeURIComponent(task.id)}`;
+}
+
+/** Built-in hot quiz id → default cold quiz id (same question bank; see `default-scheduled-quizzes.ts`). */
+export const SCHEDULED_HOT_TO_COLD_QUIZ_ID: Record<string, string> = {
+  "scheduled-math2411-hot": "scheduled-math2411-cold",
+  "scheduled-huma2104-hot": "scheduled-huma2104-cold",
+  "scheduled-mark3220-hot": "scheduled-mark3220-cold",
 };
 
 /**
@@ -53,6 +67,10 @@ export type ScheduledStudyTask = {
  * Links resolve to `/quizzes/[id]` with default MCQs (see `default-scheduled-quizzes.ts`).
  */
 export function getScheduledCourseQuizzes(referenceDate: Date = new Date()): CourseQuiz[] {
+  const d2 = addDaysLocalDateString(referenceDate, 2);
+  const d5 = addDaysLocalDateString(referenceDate, 5);
+  const dApr15 = april15DateString(referenceDate);
+
   return [
     {
       id: "scheduled-math2411-hot",
@@ -61,7 +79,16 @@ export function getScheduledCourseQuizzes(referenceDate: Date = new Date()): Cou
       testType: "hot",
       title: "Hot quiz",
       status: "not-started",
-      dueDate: addDaysLocalDateString(referenceDate, 2),
+      dueDate: d2,
+    },
+    {
+      id: "scheduled-math2411-cold",
+      course: "MATH2411",
+      subtopic: "Central Limit Theorem",
+      testType: "cold",
+      title: "Cold quiz",
+      status: "not-started",
+      dueDate: addDaysToLocalYmd(d2, -7),
     },
     {
       id: "scheduled-temg3950-review",
@@ -79,7 +106,16 @@ export function getScheduledCourseQuizzes(referenceDate: Date = new Date()): Cou
       testType: "hot",
       title: "Hot quiz",
       status: "not-started",
-      dueDate: addDaysLocalDateString(referenceDate, 5),
+      dueDate: d5,
+    },
+    {
+      id: "scheduled-huma2104-cold",
+      course: "HUMA2104",
+      subtopic: "Counterpoint",
+      testType: "cold",
+      title: "Cold quiz",
+      status: "not-started",
+      dueDate: addDaysToLocalYmd(d5, -7),
     },
     {
       id: "scheduled-mark3220-hot",
@@ -88,7 +124,16 @@ export function getScheduledCourseQuizzes(referenceDate: Date = new Date()): Cou
       testType: "hot",
       title: "Hot quiz",
       status: "not-started",
-      dueDate: april15DateString(referenceDate),
+      dueDate: dApr15,
+    },
+    {
+      id: "scheduled-mark3220-cold",
+      course: "MARK3220",
+      subtopic: "Marketing Research Processes",
+      testType: "cold",
+      title: "Cold quiz",
+      status: "not-started",
+      dueDate: addDaysToLocalYmd(dApr15, -7),
     },
     {
       id: "scheduled-comp3511-review",
@@ -119,7 +164,7 @@ export function getScheduledStudyTasks(referenceDate: Date = new Date()): Schedu
   const dApr18 = april18DateString(referenceDate);
   const dApr20 = april20DateString(referenceDate);
 
-  return [
+  const base: ScheduledStudyTask[] = [
     {
       id: "scheduled-math2411-hot",
       date: d2,
@@ -188,6 +233,29 @@ export function getScheduledStudyTasks(referenceDate: Date = new Date()): Schedu
       description: "Monopoly review — due Apr 20. Listed under Review on the Quizzes page.",
     },
   ];
+
+  /** Cold quiz one week before each built-in hot (same MCQs as hot; review quizzes stay separate). */
+  const coldPrep: ScheduledStudyTask[] = [];
+  for (const t of base) {
+    if (t.type !== "hot_quiz") continue;
+    const coldId = SCHEDULED_HOT_TO_COLD_QUIZ_ID[t.id];
+    if (!coldId) continue;
+    const coldDate = addDaysToLocalYmd(t.date, -7);
+    coldPrep.push({
+      id: coldId,
+      date: coldDate,
+      title: t.title.replace(" — Hot quiz", " — Cold quiz").replace("Hot quiz", "Cold quiz"),
+      type: "cold_quiz",
+      topic: `${t.topic} (1 week before hot)`,
+      priority: "medium",
+      time: `Due ${new Date(coldDate + "T12:00:00").toLocaleDateString()}`,
+      duration: "45 min",
+      description:
+        "Same question set as the paired hot quiz — take cold first, then hot one week later.",
+    });
+  }
+
+  return [...base, ...coldPrep];
 }
 
 /** Review-quiz topics due on or after `referenceDate`’s calendar day (for “unclear concepts” / focus areas). */
@@ -198,6 +266,17 @@ export function getUpcomingReviewQuizConcepts(
   return getScheduledCourseQuizzes(referenceDate)
     .filter((q) => q.testType === "review" && q.dueDate != null && q.dueDate >= today)
     .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? "") || a.course.localeCompare(b.course))
+    .filter(
+      (q) =>
+        q.testType === "review" &&
+        typeof q.dueDate === "string" &&
+        q.dueDate >= today,
+    )
+    .sort((a, b) => {
+      const da = a.dueDate ?? "";
+      const db = b.dueDate ?? "";
+      return da.localeCompare(db) || a.course.localeCompare(b.course);
+    })
     .map((q) => ({
       quizId: q.id,
       course: q.course,

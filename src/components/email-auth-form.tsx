@@ -53,6 +53,8 @@ export function EmailAuthForm() {
     );
   }
 
+  const auth = firebaseAuth;
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const auth = firebaseAuth;

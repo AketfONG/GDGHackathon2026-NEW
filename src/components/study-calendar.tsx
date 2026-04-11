@@ -19,13 +19,22 @@ interface StudyCalendarProps {
   selectedDate?: string | null;
   /** Tighter vertical rhythm (e.g. dashboard beside a packed sidebar). */
   compact?: boolean;
+  /** 0 = week starts Sunday, 1 = Monday (from Settings). */
+  weekStartsOn?: 0 | 1;
 }
 
-export function StudyCalendar({ tasks = [], onDateSelect, selectedDate, compact = false }: StudyCalendarProps) {
+export function StudyCalendar({
+  tasks = [],
+  onDateSelect,
+  selectedDate,
+  compact = false,
+  weekStartsOn = 0,
+}: StudyCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+  const jsFirstDow = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
+  const leadingBlanks = weekStartsOn === 1 ? (jsFirstDow + 6) % 7 : jsFirstDow;
 
   const monthName = currentDate.toLocaleString("default", { month: "long", year: "numeric" });
 
@@ -53,8 +62,13 @@ export function StudyCalendar({ tasks = [], onDateSelect, selectedDate, compact 
     onDateSelect?.(selectedDate === dateStr ? null : dateStr);
   };
 
+  const dayLabels =
+    weekStartsOn === 1
+      ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+      : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
   const days = [];
-  for (let i = 0; i < firstDayOfMonth; i++) {
+  for (let i = 0; i < leadingBlanks; i++) {
     days.push(null);
   }
   for (let i = 1; i <= daysInMonth; i++) {
@@ -82,7 +96,7 @@ export function StudyCalendar({ tasks = [], onDateSelect, selectedDate, compact 
       <div
         className={`grid grid-cols-7 gap-1 text-center text-xs font-semibold text-slate-600 ${compact ? "mb-1" : "mb-2"}`}
       >
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+        {dayLabels.map((day) => (
           <div key={day}>{day}</div>
         ))}
       </div>

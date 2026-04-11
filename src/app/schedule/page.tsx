@@ -7,6 +7,14 @@ import { getScheduledCourseQuizzes, getScheduledStudyTasks } from "@/lib/schedul
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  getScheduledCourseQuizzes,
+  getScheduledStudyTasks,
+  taskQuizHref,
+  type ScheduledStudyTask,
+} from "@/lib/scheduled-quizzes";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
 interface StudyTask {
   id: string;
@@ -18,11 +26,32 @@ interface StudyTask {
   time: string;
   duration: string;
   description: string;
+  externalQuizHref?: string;
   // Additional details for task info panel
   contents?: string[];
   unclearConcepts?: string[];
   topicsCovered?: string[];
   studyTips?: string[];
+}
+
+function enrichTasksWithReviewConcepts(tasks: ScheduledStudyTask[]): StudyTask[] {
+  const quizById = new Map(getScheduledCourseQuizzes().map((q) => [q.id, q]));
+  return tasks.map((t) => {
+    const cq = quizById.get(t.id);
+    if (t.type === "review_quiz" && cq?.testType === "review") {
+      const topic = String(cq.subtopic ?? "").trim();
+      if (topic) return { ...t, unclearConcepts: [topic] };
+    }
+    return { ...t };
+  });
+}
+
+function canOpenQuizTask(t: StudyTask): boolean {
+  return (
+    Boolean(t.externalQuizHref) ||
+    t.id.startsWith("scheduled-") ||
+    /^[a-f\d]{24}$/i.test(t.id)
+  );
 }
 
 const getTypeColor = (type: string) => {
@@ -97,9 +126,26 @@ export default function SchedulePage() {
       if (t.type === "review_quiz" && cq?.testType === "review") {
         const sub = cq.subtopic?.trim();
         return { ...t, unclearConcepts: sub ? [sub] : [] };
+  const [studyPlan, setStudyPlan] = useState<StudyTask[]>(() =>
+    enrichTasksWithReviewConcepts(getScheduledStudyTasks()),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/schedule/tasks", { credentials: "include" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { tasks?: ScheduledStudyTask[] };
+        if (cancelled || !Array.isArray(data.tasks)) return;
+        setStudyPlan(enrichTasksWithReviewConcepts(data.tasks));
+      } catch {
+        /* keep static plan */
       }
-      return t;
-    });
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadIcs = useCallback(async () => {
@@ -344,6 +390,20 @@ export default function SchedulePage() {
                               {icsForDay.length} cal event{icsForDay.length !== 1 ? "s" : ""}
                             </p>
                           ) : null}
+                          <p className="text-xs font-medium text-blue-700">{taskCount} task{taskCount !== 1 ? "s" : ""}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {tasksByDate[dateString].slice(0, 2).map((task) => {
+                              const colors = getTypeColor(task.type);
+                              return (
+                                <span
+                                  key={`${task.date}-${task.type}-${task.id}`}
+                                  className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text}`}
+                                >
+                                  {getTypeLabel(task.type).split(" ")[0]}
+                                </span>
+                              );
+                            })}
+                          </div>
                         </div>
                       )}
                     </button>
@@ -443,9 +503,9 @@ export default function SchedulePage() {
 
                     {/* Do Quiz Button */}
                     {(selectedTask.type === "hot_quiz" || selectedTask.type === "cold_quiz" || selectedTask.type === "review_quiz") &&
-                      (selectedTask.id.startsWith("scheduled-") ? (
+                      (canOpenQuizTask(selectedTask) ? (
                         <Link
-                          href={`/quizzes/${encodeURIComponent(selectedTask.id)}`}
+                          href={taskQuizHref(selectedTask as ScheduledStudyTask)}
                           className="mt-4 block w-full rounded-lg bg-blue-600 px-4 py-2 text-center font-medium text-white transition-colors hover:bg-blue-700"
                         >
                           Open quiz
@@ -536,7 +596,7 @@ export default function SchedulePage() {
                         const colors = getTypeColor(task.type);
                         return (
                           <button
-                            key={task.id}
+                            key={`${task.date}-${task.type}-${task.id}`}
                             onClick={() => setSelectedTask(task)}
                             className={`w-full rounded-lg border-2 p-3 text-left transition-all hover:shadow-md ${colors.bg} border-slate-300`}
                           >
