@@ -157,7 +157,7 @@ export function HomeDashboard({ coldTests, coldTestsLoadFailed, scheduleTasks }:
                 <div className="min-h-0 flex-1" aria-hidden />
               </section>
 
-              <section className="flex min-h-0 flex-1 basis-0 flex-col px-3 pb-3 pt-2">
+              <section className="flex min-h-0 flex-1 basis-0 flex-col overflow-hidden px-3 pb-3 pt-2">
                 <h2 className="shrink-0 text-lg font-semibold text-slate-900">
                   {selectedDate
                     ? new Date(selectedDate + "T00:00:00").toLocaleDateString("en-US", {
@@ -167,7 +167,7 @@ export function HomeDashboard({ coldTests, coldTestsLoadFailed, scheduleTasks }:
                       })
                     : "Selected date"}
                 </h2>
-                <div className="mt-1.5 max-h-48 min-h-0 shrink-0 overflow-y-auto overscroll-y-contain rounded-md border border-slate-100 bg-slate-50/40 pr-0.5 pl-1 pt-1">
+                <div className="mt-1.5 min-h-0 flex-1 overflow-y-auto overscroll-y-contain rounded-md border border-slate-100 bg-slate-50/40 px-1 pt-1 pb-4 [scrollbar-gutter:stable]">
                   {!selectedDate ? (
                     <p className="py-2 text-sm leading-relaxed text-slate-500">
                       Click a highlighted day on the calendar to see quizzes due that day.
@@ -183,7 +183,7 @@ export function HomeDashboard({ coldTests, coldTestsLoadFailed, scheduleTasks }:
                         );
                       }
                       return (
-                        <ul className="space-y-2 pb-1">
+                        <ul className="space-y-2">
                           {dayTasks.map((task) => (
                             <li
                               key={`${task.date}-${task.type}-${task.id}`}
@@ -212,7 +212,6 @@ export function HomeDashboard({ coldTests, coldTestsLoadFailed, scheduleTasks }:
                     })()
                   )}
                 </div>
-                <div className="min-h-0 flex-1" aria-hidden />
               </section>
             </div>
           </div>
