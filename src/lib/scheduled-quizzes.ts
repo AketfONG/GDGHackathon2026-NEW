@@ -55,11 +55,22 @@ export function taskQuizHref(task: ScheduledStudyTask): string {
   return task.externalQuizHref ?? `/quizzes/${encodeURIComponent(task.id)}`;
 }
 
+/** Built-in hot quiz id → default cold quiz id (same question bank; see `default-scheduled-quizzes.ts`). */
+export const SCHEDULED_HOT_TO_COLD_QUIZ_ID: Record<string, string> = {
+  "scheduled-math2411-hot": "scheduled-math2411-cold",
+  "scheduled-huma2104-hot": "scheduled-huma2104-cold",
+  "scheduled-mark3220-hot": "scheduled-mark3220-cold",
+};
+
 /**
  * Hard-coded upcoming quizzes (relative to referenceDate) for dashboard + schedule.
  * Links resolve to `/quizzes/[id]` with default MCQs (see `default-scheduled-quizzes.ts`).
  */
 export function getScheduledCourseQuizzes(referenceDate: Date = new Date()): CourseQuiz[] {
+  const d2 = addDaysLocalDateString(referenceDate, 2);
+  const d5 = addDaysLocalDateString(referenceDate, 5);
+  const dApr15 = april15DateString(referenceDate);
+
   return [
     {
       id: "scheduled-math2411-hot",
@@ -68,7 +79,16 @@ export function getScheduledCourseQuizzes(referenceDate: Date = new Date()): Cou
       testType: "hot",
       title: "Hot quiz",
       status: "not-started",
-      dueDate: addDaysLocalDateString(referenceDate, 2),
+      dueDate: d2,
+    },
+    {
+      id: "scheduled-math2411-cold",
+      course: "MATH2411",
+      subtopic: "Central Limit Theorem",
+      testType: "cold",
+      title: "Cold quiz",
+      status: "not-started",
+      dueDate: addDaysToLocalYmd(d2, -7),
     },
     {
       id: "scheduled-temg3950-review",
@@ -86,7 +106,16 @@ export function getScheduledCourseQuizzes(referenceDate: Date = new Date()): Cou
       testType: "hot",
       title: "Hot quiz",
       status: "not-started",
-      dueDate: addDaysLocalDateString(referenceDate, 5),
+      dueDate: d5,
+    },
+    {
+      id: "scheduled-huma2104-cold",
+      course: "HUMA2104",
+      subtopic: "Counterpoint",
+      testType: "cold",
+      title: "Cold quiz",
+      status: "not-started",
+      dueDate: addDaysToLocalYmd(d5, -7),
     },
     {
       id: "scheduled-mark3220-hot",
@@ -95,7 +124,16 @@ export function getScheduledCourseQuizzes(referenceDate: Date = new Date()): Cou
       testType: "hot",
       title: "Hot quiz",
       status: "not-started",
-      dueDate: april15DateString(referenceDate),
+      dueDate: dApr15,
+    },
+    {
+      id: "scheduled-mark3220-cold",
+      course: "MARK3220",
+      subtopic: "Marketing Research Processes",
+      testType: "cold",
+      title: "Cold quiz",
+      status: "not-started",
+      dueDate: addDaysToLocalYmd(dApr15, -7),
     },
     {
       id: "scheduled-comp3511-review",
@@ -196,23 +234,24 @@ export function getScheduledStudyTasks(referenceDate: Date = new Date()): Schedu
     },
   ];
 
-  /** Cold prep one week before each built-in hot quiz (same pairing as upload cold → hot +7 days). */
+  /** Cold quiz one week before each built-in hot (same MCQs as hot; review quizzes stay separate). */
   const coldPrep: ScheduledStudyTask[] = [];
   for (const t of base) {
     if (t.type !== "hot_quiz") continue;
+    const coldId = SCHEDULED_HOT_TO_COLD_QUIZ_ID[t.id];
+    if (!coldId) continue;
     const coldDate = addDaysToLocalYmd(t.date, -7);
     coldPrep.push({
-      id: `${t.id}-cold-prep`,
+      id: coldId,
       date: coldDate,
-      title: t.title.replace(" — Hot quiz", " — Cold prep").replace("Hot quiz", "Cold prep"),
+      title: t.title.replace(" — Hot quiz", " — Cold quiz").replace("Hot quiz", "Cold quiz"),
       type: "cold_quiz",
       topic: `${t.topic} (1 week before hot)`,
       priority: "medium",
-      time: `Prep ${new Date(coldDate + "T12:00:00").toLocaleDateString()}`,
-      duration: "30–45 min",
+      time: `Due ${new Date(coldDate + "T12:00:00").toLocaleDateString()}`,
+      duration: "45 min",
       description:
-        "Cold recall before the hot quiz — review notes or upload materials, then take your cold test on the Quizzes page.",
-      externalQuizHref: "/quizzes",
+        "Same question set as the paired hot quiz — take cold first, then hot one week later.",
     });
   }
 

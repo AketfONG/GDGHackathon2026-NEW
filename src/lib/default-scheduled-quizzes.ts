@@ -1,16 +1,27 @@
 import type { UiQuiz, UiQuizQuestion } from "@/lib/ui-quizzes";
 
-const MATH2411_ID = "scheduled-math2411-hot";
-const HUMA2104_ID = "scheduled-huma2104-hot";
-const MARK3220_ID = "scheduled-mark3220-hot";
+const MATH2411_HOT_ID = "scheduled-math2411-hot";
+const MATH2411_COLD_ID = "scheduled-math2411-cold";
+const HUMA2104_HOT_ID = "scheduled-huma2104-hot";
+const HUMA2104_COLD_ID = "scheduled-huma2104-cold";
+const MARK3220_HOT_ID = "scheduled-mark3220-hot";
+const MARK3220_COLD_ID = "scheduled-mark3220-cold";
 const COMP3511_ID = "scheduled-comp3511-review";
 const ECON2103_ID = "scheduled-econ2103-review";
 const TEMG3950_ID = "scheduled-temg3950-review";
 
+/** Hot and cold default quizzes share the same items; review quizzes use separate banks below. */
+function remapQuestionIdsForQuiz(questions: UiQuizQuestion[], quizId: string): UiQuizQuestion[] {
+  return questions.map((qu, i) => ({ ...qu, id: `${quizId}-${i + 1}` }));
+}
+
 export const DEFAULT_SCHEDULED_QUIZ_IDS = [
-  MATH2411_ID,
-  HUMA2104_ID,
-  MARK3220_ID,
+  MATH2411_HOT_ID,
+  MATH2411_COLD_ID,
+  HUMA2104_HOT_ID,
+  HUMA2104_COLD_ID,
+  MARK3220_HOT_ID,
+  MARK3220_COLD_ID,
   COMP3511_ID,
   ECON2103_ID,
   TEMG3950_ID,
@@ -38,70 +49,70 @@ function q(
 
 const math2411Questions: UiQuizQuestion[] = [
   q(
-    `${MATH2411_ID}-1`,
+    `${MATH2411_HOT_ID}-1`,
     "The Central Limit Theorem (CLT) is most closely about the sampling distribution of:",
     ["A single observation", "The sample mean (or sum) of many observations", "The population maximum", "The sample range"],
     1,
     "Under common conditions, averages of many draws have an approximately normal distribution even when the population is not normal.",
   ),
   q(
-    `${MATH2411_ID}-2`,
+    `${MATH2411_HOT_ID}-2`,
     "Roughly speaking, as sample size n increases (with usual regularity conditions), the distribution of the sample mean tends to:",
     ["Always match the population shape exactly", "Become more normal-shaped", "Become uniform", "Collapse to a point"],
     1,
     "That stabilizing/normalizing behavior for averages is the core CLT idea.",
   ),
   q(
-    `${MATH2411_ID}-3`,
+    `${MATH2411_HOT_ID}-3`,
     "A common CLT setup assumes observations are independent and identically distributed (i.i.d.) with finite:",
     ["Population size", "Variance (and typically a well-defined mean)", "Median only", "Mode only"],
     1,
     "Finite variance (and a mean) are standard assumptions in the classical CLT for means.",
   ),
   q(
-    `${MATH2411_ID}-4`,
+    `${MATH2411_HOT_ID}-4`,
     "If you standardize the sample mean by subtracting μ and dividing by σ/√n (known σ), the resulting quantity is often used to argue it is approximately:",
     ["Chi-squared", "Standard normal", "Exponential", "Cauchy"],
     1,
     "That is the usual z-style standardization linked to normal approximations for means.",
   ),
   q(
-    `${MATH2411_ID}-5`,
+    `${MATH2411_HOT_ID}-5`,
     "For a sample proportion p̂ from a large random sample, a normal approximation is justified in part because p̂ is:",
     ["Always exactly normal for any n", "A type of average / mean of Bernoulli outcomes", "Unrelated to means", "Only defined for continuous data"],
     1,
     "A proportion is a mean of 0/1 outcomes, so CLT intuition applies when n is large enough.",
   ),
   q(
-    `${MATH2411_ID}-6`,
+    `${MATH2411_HOT_ID}-6`,
     "If the population is already exactly normal, the sampling distribution of the sample mean is:",
     ["Never normal", "Normal for any sample size n ≥ 1", "Only normal if n > 30", "Always uniform"],
     1,
     "Averages of normal data are normal; CLT is extra reassurance when the population is not normal.",
   ),
   q(
-    `${MATH2411_ID}-7`,
+    `${MATH2411_HOT_ID}-7`,
     "The standard error of the mean typically scales with σ and n as:",
     ["σ·n", "σ/√n", "σ/n²", "σ + √n"],
     1,
     "Var(X̄) = σ²/n, so SD(X̄) = σ/√n under i.i.d. assumptions.",
   ),
   q(
-    `${MATH2411_ID}-8`,
+    `${MATH2411_HOT_ID}-8`,
     "For a skewed population distribution, with a large enough n, the sampling distribution of X̄ is often:",
     ["Exactly skewed like the population forever", "Approximately symmetric/normal for practical purposes", "Always bimodal", "Undefined"],
     1,
     "CLT: averaging smooths skew; large n makes the mean’s distribution more bell-shaped.",
   ),
   q(
-    `${MATH2411_ID}-9`,
+    `${MATH2411_HOT_ID}-9`,
     "The “n large enough” rule of thumb for CLT approximations is:",
     ["A fixed universal law with no exceptions", "Context-dependent; depends on skew and use case", "Only valid if n = 30 exactly", "Only for discrete data"],
     1,
     "Textbooks sometimes say n ≥ 30 as a heuristic, but heavy skew or rare events need larger n.",
   ),
   q(
-    `${MATH2411_ID}-10`,
+    `${MATH2411_HOT_ID}-10`,
     "CLT is about the distribution of an average (or sum). It does not claim that:",
     ["Means become more normal with large n (under conditions)", "Every individual observation becomes normal", "Proportions can be approximated for large n", "Sums of many small effects can look normal"],
     1,
@@ -111,70 +122,70 @@ const math2411Questions: UiQuizQuestion[] = [
 
 const huma2104Questions: UiQuizQuestion[] = [
   q(
-    `${HUMA2104_ID}-1`,
+    `${HUMA2104_HOT_ID}-1`,
     "In Western art music, counterpoint is primarily the combination of:",
     ["One melody and only percussion", "Multiple independent melodic lines (voices)", "Only chords with no melody", "Random noise textures"],
     1,
     "Counterpoint studies how separate melodies interlock rhythmically and harmonically.",
   ),
   q(
-    `${HUMA2104_ID}-2`,
+    `${HUMA2104_HOT_ID}-2`,
     "First species (species 1) counterpoint classically pairs the cantus firmus with:",
     ["One counterpoint note per cantus note", "Four counterpoint notes per cantus note", "Only rests", "Only chords"],
     0,
     "Species 1 is note-against-note counterpoint over a fixed cantus firmus.",
   ),
   q(
-    `${HUMA2104_ID}-3`,
+    `${HUMA2104_HOT_ID}-3`,
     "Contrary motion between two voices means they generally move:",
     ["In the same direction by the same interval", "In opposite directions", "Not at all", "Only in parallel octaves"],
     1,
     "Contrary motion is a standard way to preserve independence between lines.",
   ),
   q(
-    `${HUMA2104_ID}-4`,
+    `${HUMA2104_HOT_ID}-4`,
     "In traditional tonal counterpoint, consecutive parallel perfect fifths between two voices are typically:",
     ["Encouraged everywhere", "Avoided as a weak voice-leading choice", "Required at cadences only", "Only used in jazz"],
     1,
     "Parallel fifths reduce the sense of independent harmonic motion between parts.",
   ),
   q(
-    `${HUMA2104_ID}-5`,
+    `${HUMA2104_HOT_ID}-5`,
     "A cantus firmus in counterpoint study is best described as:",
     ["A random drum loop", "A fixed given melody used as the foundation", "Only a tempo marking", "The final chord only"],
     1,
     "Students write a second line against a supplied cantus firmus.",
   ),
   q(
-    `${HUMA2104_ID}-6`,
+    `${HUMA2104_HOT_ID}-6`,
     "A canon is a type of strict counterpoint where:",
     ["Voices never repeat", "One voice imitates another after a delay, often exactly", "Only one pitch is allowed", "Form is always rondo"],
     1,
     "Canons are rule-based imitative counterpoint (e.g., rounds).",
   ),
   q(
-    `${HUMA2104_ID}-7`,
+    `${HUMA2104_HOT_ID}-7`,
     "A fugue typically begins with the subject stated alone, then enters again in other voices in:",
     ["Unison only forever", "Imitative entries at different pitch levels", "Reverse order alphabetically", "Silence"],
     1,
     "Fugal exposition layers staggered entries of the subject—core counterpoint craft.",
   ),
   q(
-    `${HUMA2104_ID}-8`,
+    `${HUMA2104_HOT_ID}-8`,
     "Dissonance in species counterpoint is usually:",
     ["Never allowed", "Allowed only with proper preparation and resolution", "Always on the downbeat only", "Ignored"],
     1,
     "Consonance/dissonance rules govern how tensions arrive and resolve between voices.",
   ),
   q(
-    `${HUMA2104_ID}-9`,
+    `${HUMA2104_HOT_ID}-9`,
     "Invertible counterpoint means:",
     ["Deleting the bass", "Voices can swap vertical roles so intervals still obey rules", "Playing only major scales", "Using only one rhythm"],
     1,
     "Intervals are checked when the counterpoint is flipped relative to the cantus.",
   ),
   q(
-    `${HUMA2104_ID}-10`,
+    `${HUMA2104_HOT_ID}-10`,
     "Compared to homophonic texture, contrapuntal texture emphasizes:",
     ["One melody with accompaniment only", "Rhythmic and melodic independence between parts", "Only drones", "Unmeasured speech"],
     1,
@@ -257,70 +268,70 @@ const temg3950Questions: UiQuizQuestion[] = [
 
 const mark3220Questions: UiQuizQuestion[] = [
   q(
-    `${MARK3220_ID}-1`,
+    `${MARK3220_HOT_ID}-1`,
     "In the marketing research process, which step typically comes first?",
     ["Analyze data before defining the question", "Clarify the management decision and research problem", "Field the survey immediately", "Write the final report"],
     1,
     "You start by understanding what decision the research must support and what you need to learn.",
   ),
   q(
-    `${MARK3220_ID}-2`,
+    `${MARK3220_HOT_ID}-2`,
     "Exploratory research is best described as:",
     ["Testing a specific hypothesis with a large probability sample", "Gaining initial insights when problems are vague", "Only measuring sales after a campaign", "Replacing all quantitative work"],
     1,
     "Exploratory work helps narrow questions and identify variables before conclusive designs.",
   ),
   q(
-    `${MARK3220_ID}-3`,
+    `${MARK3220_HOT_ID}-3`,
     "Primary data are data that:",
     ["Were collected by someone else for another purpose", "You collect fresh for your current research objective", "Always come from government only", "Exclude surveys"],
     1,
     "Primary = firsthand collection (surveys, interviews, experiments) for your study.",
   ),
   q(
-    `${MARK3220_ID}-4`,
+    `${MARK3220_HOT_ID}-4`,
     "Secondary data are:",
     ["Always qualitative", "Existing data originally gathered for another use", "Impossible to bias", "The same as internal analytics only"],
     1,
     "Secondary sources include syndicated reports, prior studies, and company records.",
   ),
   q(
-    `${MARK3220_ID}-5`,
+    `${MARK3220_HOT_ID}-5`,
     "A probability sample is one in which:",
     ["Every element has a known, nonzero chance of selection", "You only interview friends", "You stop when bored", "You pick the most convenient mall"],
     0,
     "Probability sampling supports statistical inference to a defined population.",
   ),
   q(
-    `${MARK3220_ID}-6`,
+    `${MARK3220_HOT_ID}-6`,
     "Reliability in measurement most closely means:",
     ["The measure hits the true concept every time", "Results are consistent when repeated under similar conditions", "The questionnaire is short", "Only experts may answer"],
     1,
     "Reliability is repeatability; validity is whether you measure the right construct.",
   ),
   q(
-    `${MARK3220_ID}-7`,
+    `${MARK3220_HOT_ID}-7`,
     "Validity in measurement most closely means:",
     ["Respondents finished quickly", "The instrument actually captures the intended construct", "Sample size is always n = 30", "Cronbach’s alpha is always 1"],
     1,
     "Validity asks whether you are measuring what you claim to measure.",
   ),
   q(
-    `${MARK3220_ID}-8`,
+    `${MARK3220_HOT_ID}-8`,
     "Likert-type agreement scales (e.g., 1–5) are usually treated as at least:",
     ["Ratio-level with a true zero", "Ordinal (ordered categories)", "Nominal only", "Binary only"],
     1,
     "Ordered categories; analysts sometimes use parametric shortcuts but the level is fundamentally ordinal.",
   ),
   q(
-    `${MARK3220_ID}-9`,
+    `${MARK3220_HOT_ID}-9`,
     "Nonresponse error in surveys refers to bias arising when:",
     ["Some selected respondents do not participate and differ from those who do", "You use too many colors in charts", "The sample is too large", "You pretest the questionnaire"],
     0,
     "Patterns of who refuses or is unreachable can skew estimates.",
   ),
   q(
-    `${MARK3220_ID}-10`,
+    `${MARK3220_HOT_ID}-10`,
     "In the research process, the step of choosing a design (e.g., survey, experiment, observation) should align with:",
     ["Only the cheapest option", "The information needed and causal claims you can support", "Avoiding ethics review", "Deleting outliers first"],
     1,
@@ -475,26 +486,47 @@ const econ2103Questions: UiQuizQuestion[] = [
 ];
 
 const byId: Record<string, UiQuiz> = {
-  [MATH2411_ID]: {
-    id: MATH2411_ID,
+  [MATH2411_HOT_ID]: {
+    id: MATH2411_HOT_ID,
     title: "MATH2411 · Central Limit Theorem — Hot quiz",
     topic: "Central Limit Theorem",
     difficulty: "MEDIUM",
     questions: math2411Questions,
   },
-  [HUMA2104_ID]: {
-    id: HUMA2104_ID,
+  [MATH2411_COLD_ID]: {
+    id: MATH2411_COLD_ID,
+    title: "MATH2411 · Central Limit Theorem — Cold quiz",
+    topic: "Central Limit Theorem",
+    difficulty: "MEDIUM",
+    questions: remapQuestionIdsForQuiz(math2411Questions, MATH2411_COLD_ID),
+  },
+  [HUMA2104_HOT_ID]: {
+    id: HUMA2104_HOT_ID,
     title: "HUMA2104 · Counterpoint — Hot quiz",
     topic: "Counterpoint",
     difficulty: "MEDIUM",
     questions: huma2104Questions,
   },
-  [MARK3220_ID]: {
-    id: MARK3220_ID,
+  [HUMA2104_COLD_ID]: {
+    id: HUMA2104_COLD_ID,
+    title: "HUMA2104 · Counterpoint — Cold quiz",
+    topic: "Counterpoint",
+    difficulty: "MEDIUM",
+    questions: remapQuestionIdsForQuiz(huma2104Questions, HUMA2104_COLD_ID),
+  },
+  [MARK3220_HOT_ID]: {
+    id: MARK3220_HOT_ID,
     title: "MARK3220 · Marketing Research Processes — Hot quiz",
     topic: "Marketing Research Processes",
     difficulty: "MEDIUM",
     questions: mark3220Questions,
+  },
+  [MARK3220_COLD_ID]: {
+    id: MARK3220_COLD_ID,
+    title: "MARK3220 · Marketing Research Processes — Cold quiz",
+    topic: "Marketing Research Processes",
+    difficulty: "MEDIUM",
+    questions: remapQuestionIdsForQuiz(mark3220Questions, MARK3220_COLD_ID),
   },
   [COMP3511_ID]: {
     id: COMP3511_ID,
