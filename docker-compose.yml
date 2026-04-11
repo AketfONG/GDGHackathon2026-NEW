@@ -18,6 +18,9 @@ services:
     restart: unless-stopped
     ports:
       - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: Impromptu
+      MONGO_INITDB_ROOT_PASSWORD: Impromptu
     volumes:
       - mongo_data:/data/db
 

@@ -141,7 +141,7 @@ export function HomeDashboard({ coldTests, coldTestsLoadFailed, scheduleTasks }:
                               <span className="text-sm font-semibold text-slate-900">{course}</span>
                               <span className="text-sm text-slate-700">{concept}</span>
                             </div>
-                            <span className="shrink-0 text-xs text-slate-500">
+                            <span className="shrink-0 text-xs text-slate-500" suppressHydrationWarning>
                               Due{" "}
                               {new Date(dueDate + "T12:00:00").toLocaleDateString(undefined, {
                                 month: "short",
@@ -158,9 +158,9 @@ export function HomeDashboard({ coldTests, coldTestsLoadFailed, scheduleTasks }:
               </section>
 
               <section className="flex min-h-0 flex-1 basis-0 flex-col overflow-hidden px-3 pb-3 pt-2">
-                <h2 className="shrink-0 text-lg font-semibold text-slate-900">
+                <h2 className="shrink-0 text-lg font-semibold text-slate-900" suppressHydrationWarning>
                   {selectedDate
-                    ? new Date(selectedDate + "T00:00:00").toLocaleDateString("en-US", {
+                    ? new Date(selectedDate + "T00:00:00Z").toLocaleDateString("en-US", {
                         weekday: "short",
                         month: "short",
                         day: "numeric",

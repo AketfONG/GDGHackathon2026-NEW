@@ -84,7 +84,7 @@ export function StudyCalendar({
         >
           ←
         </button>
-        <h3 className="font-semibold text-slate-900">{monthName}</h3>
+        <h3 className="font-semibold text-slate-900" suppressHydrationWarning>{monthName}</h3>
         <button
           onClick={handleNextMonth}
           className="rounded px-2 py-1 text-slate-600 hover:bg-slate-100"

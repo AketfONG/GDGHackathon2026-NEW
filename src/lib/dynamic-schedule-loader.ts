@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/mongodb";
 import { QuizModel } from "@/models/Quiz";
+import { QuizAttemptModel } from "@/models/QuizAttempt";
 import { getServerUser } from "@/lib/auth/server-user";
 import { QUIZ_CLIENT_SCOPE_COOKIE } from "@/lib/quiz-client-scope";
 import { isSharedDemoUser } from "@/lib/quiz-access";
@@ -98,14 +99,15 @@ export async function loadDynamicScheduleTasks(): Promise<ScheduledStudyTask[]> 
         out.push({
           id: qid,
           date: due,
-          title: `${course} — Hot follow-up`,
+          title: `Hot quiz`,
           type: "hot_quiz",
           topic: `${topic} · Hot (after cold)`,
           priority: "high",
-          time: `Due ${new Date(due + "T12:00:00").toLocaleDateString()}`,
+          time: `Due ${due}`,
           duration: "45 min",
           description:
             "Scheduled one week after your last cold test completion — retake the same quiz to consolidate.",
+          externalQuizHref: `/quizzes/${encodeURIComponent(qid)}?mode=hot-followup`,
         });
       }
     }
@@ -121,4 +123,76 @@ export async function getMergedScheduleTasksForViewer(): Promise<ScheduledStudyT
   const staticTasks = getScheduledStudyTasks();
   const dynamic = await loadDynamicScheduleTasks();
   return mergeScheduleTasks(staticTasks, dynamic);
+}
+
+/**
+ * Load hot follow-up attempt scores for hot quizzes.
+ * Maps quiz ID to attempt score information.
+ */
+export async function loadHotFollowupAttempts(): Promise<
+  Map<string, { score: number; questionAttempts: { isCorrect: boolean }[] }>
+> {
+  if (isBackendDisabled()) return new Map();
+
+  try {
+    await connectToDatabase();
+
+    const cookieStore = await cookies();
+    const scope = cookieStore.get(QUIZ_CLIENT_SCOPE_COOKIE)?.value?.trim() ?? null;
+    const user = await getServerUser();
+
+    const viewerIsDemo = isSharedDemoUser(
+      user as { email?: string | null; firebaseUid?: string | null } | null,
+    );
+    const accessOr: Record<string, unknown>[] = [];
+    if (user?._id && !viewerIsDemo) accessOr.push({ ownerUserId: user._id });
+    if (scope) accessOr.push({ quizClientScope: scope });
+
+    if (accessOr.length === 0 || !user?._id) return new Map();
+
+    // Get all cold quizzes that have pending hot follow-ups
+    const coldQuizzes = await QuizModel.find({
+      testType: "cold",
+      createdFromUpload: true,
+      course: { $exists: true, $nin: ["", null] },
+      week: { $exists: true, $nin: ["", null] },
+      pendingHotFollowUp: { $exists: true },
+      $or: accessOr,
+    })
+      .select({ _id: 1 })
+      .lean();
+
+    const quizIds = coldQuizzes.map((q) => (q as { _id: unknown })._id);
+
+    // Fetch hot-followup attempts for these quizzes
+    const latestByQuizId = new Map<
+      string,
+      { score: number; questionAttempts: { isCorrect: boolean }[] }
+    >();
+
+    if (quizIds.length > 0) {
+      const attempts = await QuizAttemptModel.find({
+        userId: user._id,
+        quizId: { $in: quizIds },
+        mode: "hot-followup",
+      })
+        .sort({ submittedAt: -1 })
+        .lean();
+
+      for (const att of attempts) {
+        const qid = String(att.quizId);
+        if (!latestByQuizId.has(qid)) {
+          latestByQuizId.set(qid, {
+            score: Number(att.score) || 0,
+            questionAttempts: (att.questionAttempts ?? []) as { isCorrect: boolean }[],
+          });
+        }
+      }
+    }
+
+    return latestByQuizId;
+  } catch (error) {
+    if (isDatabaseUnavailableError(error)) return new Map();
+    throw error;
+  }
 }
