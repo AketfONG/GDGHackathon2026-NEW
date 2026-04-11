@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GDG Study Agent",
+  title: "ImPromptu",
   description: "Passive drift detection with autonomous micro-interventions",
 };
 

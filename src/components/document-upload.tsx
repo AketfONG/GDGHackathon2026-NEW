@@ -10,7 +10,6 @@ const COURSES = [
   { id: "math2411", name: "MATH2411" },
   { id: "huma2104", name: "HUMA2104" },
   { id: "mark3220", name: "MARK3220" },
-  { id: "temg3950", name: "TEMG3950" },
 ];
 
 const WEEKS = [
@@ -243,10 +242,7 @@ export function DocumentUploadForm() {
             <p className="text-sm font-semibold text-green-800">
               ✓ Quiz saved successfully! Go to the Quizzes tab to start the test.
             </p>
-            <Link
-              href="/quizzes"
-              className="mt-2 inline-block rounded-md bg-green-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-700"
-            >
+            <Link href="/quizzes" className="link-arrow-nav mt-2 inline-block">
               Go to Quizzes →
             </Link>
           </div>

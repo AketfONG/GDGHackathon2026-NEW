@@ -31,7 +31,6 @@ function parseReviewQuizId(id: string): { isReview: boolean; course?: string; we
     };
   }
 
-  // Also handle: scheduled-TEMG3950-review
   const match2 = id.match(/^scheduled-([A-Z0-9]+)-review$/i);
   if (match2) {
     return {
@@ -68,7 +67,6 @@ export default async function QuizTakePage({
             <TailoredReviewQuiz
               course={reviewCheck.course || "Course"}
               week={reviewCheck.week || ""}
-              title={`${reviewCheck.course} Review`}
               quizId={id}
             />
           </div>

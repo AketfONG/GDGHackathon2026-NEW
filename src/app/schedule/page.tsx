@@ -378,8 +378,9 @@ export default function SchedulePage() {
                 // Detailed Task View
                 <>
                   <button
+                    type="button"
                     onClick={() => setSelectedTask(null)}
-                    className="mb-4 text-sm font-medium text-blue-600 hover:text-blue-700"
+                    className="link-arrow-nav mb-4"
                   >
                     ← Back to tasks
                   </button>

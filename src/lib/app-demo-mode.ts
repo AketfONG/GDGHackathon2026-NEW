@@ -1,5 +1,5 @@
 /** HttpOnly-safe cookie: `demo` = show preset/placeholder content; `live` = real product only. */
-export const APP_DEMO_MODE_COOKIE = "study_agent_app_mode";
+export const APP_DEMO_MODE_COOKIE = "impromptu_app_mode";
 
 export type AppDemoMode = "demo" | "live";
 

@@ -7,9 +7,12 @@ import { getAuthHeaders } from "@/lib/auth/client-token";
 export function DeleteColdQuizButton({
   quizId,
   quizTitle,
+  /** When true, omit top margin so the control sits in a horizontal button row */
+  inline = false,
 }: {
   quizId: string;
   quizTitle: string;
+  inline?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -44,7 +47,7 @@ export function DeleteColdQuizButton({
   }
 
   return (
-    <div className="mt-2 flex flex-col gap-1">
+    <div className={`flex flex-col gap-1 ${inline ? "" : "mt-2"}`}>
       {err ? (
         <p className="text-sm text-red-700" role="alert">
           {err}

@@ -1,12 +1,12 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: gdg-study-agent-db
+    container_name: gdg-impromptu-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: study_agent
+      POSTGRES_DB: impromptu
     ports:
       - "5432:5432"
     volumes:
@@ -14,7 +14,7 @@ services:
 
   mongo:
     image: mongo:7
-    container_name: gdg-study-agent-mongo
+    container_name: gdg-impromptu-mongo
     restart: unless-stopped
     ports:
       - "27017:27017"

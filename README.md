@@ -1,6 +1,6 @@
-## GDG Study Agent
+## ImPromptu
 
-Quiz-first study agent that passively detects micro-slips and triggers autonomous micro-interventions before students visibly fail.
+Quiz-first app that passively detects micro-slips and triggers autonomous micro-interventions before students visibly fail.
 
 ### Stack
 - Next.js (App Router) + TypeScript + Tailwind

@@ -78,7 +78,7 @@ function tryCoerceStringRruleToParsedEvent(ev: Record<string, unknown>): Record<
   const snippet = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//study-agent//ics-coerce//EN",
+    "PRODID:-//ImPromptu//ics-coerce//EN",
     "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT",
     `UID:${uid.replace(/[\r\n]/g, "")}`,

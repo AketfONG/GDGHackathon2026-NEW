@@ -36,7 +36,7 @@ export function NavDemoLiveSwitch() {
       const data = (await res.json().catch(() => ({}))) as { mode?: AppDemoMode };
       if (data.mode === "demo" || data.mode === "live") setMode(data.mode);
       if (typeof window !== "undefined") {
-        window.dispatchEvent(new CustomEvent("study-agent-app-mode"));
+        window.dispatchEvent(new CustomEvent("impromptu-app-mode"));
       }
       router.refresh();
     });

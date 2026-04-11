@@ -19,7 +19,7 @@ export interface CourseQuiz {
   externalHref?: string;
 }
 
-/** Cards: white surface + slate outline; soft left accent (nav-adjacent tones) */
+/** Cards: white surface + slate outline; soft left accent by section type (Cold/Hot/Review headings are outside). */
 function getTestTypeCardStyle(testType: "cold" | "hot" | "review"): string {
   switch (testType) {
     case "cold":
@@ -33,38 +33,36 @@ function getTestTypeCardStyle(testType: "cold" | "hot" | "review"): string {
   }
 }
 
-function getTestTypeBadge(testType: "cold" | "hot" | "review"): string {
-  switch (testType) {
-    case "cold":
-      return "bg-sky-50 text-sky-700";
-    case "hot":
-      return "bg-rose-50 text-rose-700";
-    case "review":
-      return "bg-violet-50 text-violet-700";
-    default:
-      return "bg-slate-100 text-slate-800";
-  }
-}
-
-function getStatusBadge(status: "not-started" | "in-progress" | "completed"): string {
-  switch (status) {
-    case "completed":
-      return "bg-green-100 text-green-800";
-    case "in-progress":
-      return "bg-yellow-100 text-yellow-800";
-    case "not-started":
-      return "bg-slate-100 text-slate-800";
-    default:
-      return "bg-slate-100 text-slate-800";
-  }
-}
-
 interface QuizListProps {
   quizzes: CourseQuiz[];
 }
 
 function quizHref(quiz: CourseQuiz): string {
   return quiz.externalHref ?? `/quizzes/${encodeURIComponent(quiz.id)}`;
+}
+
+/** Subject line: first character uppercased; rest lowercased per word for phrases; course codes stay fully uppercased. */
+function formatSubjectName(raw: string): string {
+  const s = raw.trim();
+  if (!s) return "";
+  const compact = s.replace(/\s+/g, " ");
+  if (/^[A-Za-z]{2,}[A-Za-z0-9]*(?:\s+[A-Za-z0-9]+)*$/.test(compact) && compact.length <= 24 && !compact.includes(" ")) {
+    return compact.toUpperCase();
+  }
+  return compact
+    .split(" ")
+    .map((w) => (w.length ? w.charAt(0).toUpperCase() + w.slice(1).toLowerCase() : w))
+    .join(" ");
+}
+
+function statusLine(quiz: CourseQuiz): string {
+  if (quiz.status === "completed" && quiz.score != null) {
+    return `${quiz.score}%`;
+  }
+  if (quiz.status === "in-progress") {
+    return "In progress";
+  }
+  return "Not done";
 }
 
 /** Soonest due date first (YYYY-MM-DD ascending); missing dates last; then course, week, id. */
@@ -80,9 +78,8 @@ function sortQuizzesByDueDateAsc(a: CourseQuiz, b: CourseQuiz): number {
   return a.id.localeCompare(b.id);
 }
 
-/** Primary pill: soft fills + forced white label (overrides default link color) */
 const primaryPillBase =
-  "no-underline px-5 py-2 text-sm font-semibold text-white visited:text-white hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
+  "no-underline px-5 py-2 text-sm font-semibold !text-white visited:!text-white hover:!text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 
 function ColdHotQuizCard({ quiz }: { quiz: CourseQuiz }) {
   const isHot = quiz.testType === "hot";
@@ -92,134 +89,106 @@ function ColdHotQuizCard({ quiz }: { quiz: CourseQuiz }) {
   const continueCls = isHot
     ? `bg-rose-400 ${primaryPillBase} transition-colors hover:bg-rose-500 focus-visible:outline-rose-500`
     : `bg-amber-400 ${primaryPillBase} transition-colors hover:bg-amber-500 focus-visible:outline-amber-600`;
-  const retakeCls = isHot
-    ? "border-2 border-rose-100 bg-white px-5 py-2 text-sm font-semibold text-rose-800 transition-colors hover:bg-rose-50"
-    : "border-2 border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50";
 
   return (
     <div className={`rounded-2xl border-2 p-5 ${getTestTypeCardStyle(quiz.testType)}`}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-800">{quiz.course}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-3">
-            <span
-              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${getTestTypeBadge(quiz.testType)}`}
-            >
-              {quiz.testType.toUpperCase()}
-            </span>
-            {quiz.week ? (
-              <span className="text-sm font-medium text-slate-600">Week {quiz.week}</span>
-            ) : null}
-          </div>
-          <h4 className="mt-2 font-semibold text-slate-900">{quiz.title}</h4>
+      <div className="flex flex-row items-start justify-between gap-4">
+        <p className="min-w-0 flex-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          {formatSubjectName(quiz.course)}
+        </p>
+        <div className="shrink-0 space-y-1 text-right">
           {quiz.dueDate ? (
-            <p className="mt-1 text-sm text-slate-500">
-              Due: {new Date(quiz.dueDate).toLocaleDateString()}
+            <p className="text-sm text-slate-600">
+              Due: {new Date(quiz.dueDate + "T12:00:00").toLocaleDateString()}
+            </p>
+          ) : (
+            <p className="text-sm text-slate-500">No due date</p>
+          )}
+          <p className="text-sm font-semibold text-slate-800">{statusLine(quiz)}</p>
+          {quiz.status === "completed" && quiz.correctAnswers != null && quiz.totalQuestions != null ? (
+            <p className="text-xs text-slate-500">
+              {quiz.correctAnswers}/{quiz.totalQuestions} correct
             </p>
           ) : null}
         </div>
-        <div className="shrink-0 text-right">
-          <span
-            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${getStatusBadge(quiz.status)}`}
-          >
-            {quiz.status === "not-started"
-              ? "Not Started"
-              : quiz.status === "in-progress"
-                ? "In Progress"
-                : "Done"}
-          </span>
-          {quiz.status === "completed" ? (
-            <div className="mt-2">
-              <p className="text-lg font-bold text-slate-900">{quiz.score}%</p>
-              <p className="text-sm text-slate-600">
-                {quiz.correctAnswers}/{quiz.totalQuestions}
-              </p>
-            </div>
+      </div>
+
+      {quiz.status === "not-started" ||
+      quiz.status === "in-progress" ||
+      (quiz.status === "completed" && isMongoObjectIdString(quiz.id)) ? (
+        <div className="mt-4 flex flex-row flex-wrap items-center gap-2">
+          {quiz.status === "not-started" ? (
+            <>
+              <Link
+                href={quizHref(quiz)}
+                className={`inline-flex items-center justify-center rounded-full ${startCls}`}
+              >
+                Take quiz
+              </Link>
+              {quiz.testType === "cold" && isMongoObjectIdString(quiz.id) ? (
+                <DeleteColdQuizButton inline quizId={quiz.id} quizTitle={quiz.title} />
+              ) : null}
+            </>
+          ) : null}
+          {quiz.status === "in-progress" ? (
+            <>
+              <Link
+                href={quizHref(quiz)}
+                className={`inline-flex items-center justify-center rounded-full ${continueCls}`}
+              >
+                Take quiz
+              </Link>
+              {quiz.testType === "cold" && isMongoObjectIdString(quiz.id) ? (
+                <DeleteColdQuizButton inline quizId={quiz.id} quizTitle={quiz.title} />
+              ) : null}
+            </>
+          ) : null}
+          {quiz.status === "completed" && isMongoObjectIdString(quiz.id) ? (
+            <DeleteColdQuizButton inline quizId={quiz.id} quizTitle={quiz.title} />
           ) : null}
         </div>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {quiz.status === "not-started" ? (
-          <Link
-            href={quizHref(quiz)}
-            className={`inline-flex items-center justify-center rounded-full ${startCls}`}
-          >
-            Start Quiz
-          </Link>
-        ) : null}
-        {quiz.status === "in-progress" ? (
-          <Link
-            href={quizHref(quiz)}
-            className={`inline-flex items-center justify-center rounded-full ${continueCls}`}
-          >
-            Continue
-          </Link>
-        ) : null}
-        {quiz.status === "completed" ? (
-          <>
-            <Link
-              href={quizHref(quiz)}
-              className={`inline-flex items-center justify-center rounded-full bg-slate-600 ${primaryPillBase} transition-colors hover:bg-slate-700 focus-visible:outline-slate-600`}
-            >
-              Review
-            </Link>
-            <Link
-              href={quizHref(quiz)}
-              className={`inline-flex items-center justify-center rounded-full ${retakeCls}`}
-            >
-              Retake
-            </Link>
-          </>
-        ) : null}
-      </div>
-      {quiz.testType === "cold" && isMongoObjectIdString(quiz.id) ? (
-        <DeleteColdQuizButton quizId={quiz.id} quizTitle={quiz.title} />
       ) : null}
     </div>
   );
 }
 
-/** Same full-width card layout as cold/hot (no grid column), so single review rows match width. */
 function ReviewQuizCard({ quiz }: { quiz: CourseQuiz }) {
   return (
     <div className={`rounded-2xl border-2 p-5 ${getTestTypeCardStyle(quiz.testType)}`}>
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-800">{quiz.course}</p>
-          <div className="mt-1 flex items-center gap-2">
-            <span
-              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${getTestTypeBadge(quiz.testType)}`}
-            >
-              REVIEW
-            </span>
-          </div>
-          <h4 className="mt-2 font-semibold text-slate-900">{quiz.title}</h4>
+      <div className="flex flex-row items-start justify-between gap-4">
+        <p className="min-w-0 flex-1 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          {formatSubjectName(quiz.course)}
+        </p>
+        <div className="shrink-0 space-y-1 text-right">
           {quiz.dueDate ? (
-            <p className="mt-1 text-sm text-slate-500">
-              Due: {new Date(quiz.dueDate).toLocaleDateString()}
+            <p className="text-sm text-slate-600">
+              Due: {new Date(quiz.dueDate + "T12:00:00").toLocaleDateString()}
             </p>
-          ) : null}
-        </div>
-        <div className="shrink-0 text-right">
-          <span
-            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${getStatusBadge(quiz.status)}`}
-          >
-            {quiz.status === "completed" ? "Last Score" : "Not Started"}
-          </span>
-          {quiz.status === "completed" ? (
-            <div className="mt-2">
-              <p className="text-lg font-bold text-slate-900">{quiz.score}%</p>
-            </div>
-          ) : null}
+          ) : (
+            <p className="text-sm text-slate-500">No due date</p>
+          )}
+          <p className="text-sm font-semibold text-slate-800">{statusLine(quiz)}</p>
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2">
+
+      <div className="mt-4 flex flex-row flex-wrap items-center gap-2">
+        {quiz.status === "completed" ? (
+          <Link
+            href={quizHref(quiz)}
+            className={`inline-flex items-center justify-center rounded-full bg-slate-600 ${primaryPillBase} transition-colors hover:bg-slate-700 focus-visible:outline-slate-600`}
+          >
+            Review
+          </Link>
+        ) : null}
         <Link
           href={quizHref(quiz)}
           className={`inline-flex items-center justify-center rounded-full bg-violet-400 ${primaryPillBase} transition-colors hover:bg-violet-500 focus-visible:outline-violet-500`}
         >
-          {quiz.status === "completed" ? "Practice Again" : "Start Review"}
+          {quiz.status === "completed" ? "Retake" : "Take quiz"}
         </Link>
+        {quiz.status === "completed" && isMongoObjectIdString(quiz.id) ? (
+          <DeleteColdQuizButton inline quizId={quiz.id} quizTitle={quiz.title} />
+        ) : null}
       </div>
     </div>
   );

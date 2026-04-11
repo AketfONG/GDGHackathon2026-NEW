@@ -125,7 +125,7 @@ export function TopNav() {
                 textDecoration: "none",
               }}
             >
-              StudyAgent
+              ImPromptu
             </Link>
           </div>
 

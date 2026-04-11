@@ -3,23 +3,25 @@
 import { useEffect, useState } from "react";
 import { QuizAttemptForm } from "@/components/quiz-attempt-form";
 import type { UiQuiz } from "@/lib/ui-quizzes";
+import { getDefaultScheduledUiQuiz, isDefaultScheduledQuizId } from "@/lib/default-scheduled-quizzes";
 
 interface TailoredReviewProps {
   course: string;
   week?: string;
-  title: string;
   quizId: string;
 }
 
 /**
  * Dynamically loads tailored review questions based on student's weak areas
  * from their uploaded cold quiz for this course.
- * Falls back to basic quiz if generation fails.
+ * Falls back to the schedule preset MCQs (same as demo defaults) when tailored AI review is unavailable.
  */
-export function TailoredReviewQuiz({ course, week, title, quizId }: TailoredReviewProps) {
+export function TailoredReviewQuiz({ course, week, quizId }: TailoredReviewProps) {
   const [quiz, setQuiz] = useState<UiQuiz | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  /** True when using built-in questions from `default-scheduled-quizzes` (no uploaded cold quiz for this course). */
+  const [usedPresetFallback, setUsedPresetFallback] = useState(false);
   const [weakTopics, setWeakTopics] = useState<string[]>([]);
   const [unclearConcepts, setUnclearConcepts] = useState<string[]>([]);
   const [postSubmissionConcepts, setPostSubmissionConcepts] = useState<string[]>([]);
@@ -60,7 +62,26 @@ export function TailoredReviewQuiz({ course, week, title, quizId }: TailoredRevi
   };
 
   useEffect(() => {
+    let cancelled = false;
+
+    const applyPresetFallback = (): boolean => {
+      if (!isDefaultScheduledQuizId(quizId)) return false;
+      const preset = getDefaultScheduledUiQuiz(quizId);
+      if (!preset?.questions?.length) return false;
+      setQuiz(preset);
+      setWeakTopics([]);
+      setUnclearConcepts([]);
+      setPostSubmissionConcepts([]);
+      setSourceTitle("");
+      setUsedPresetFallback(true);
+      setError(null);
+      return true;
+    };
+
     const loadTailoredQuiz = async () => {
+      setLoading(true);
+      setError(null);
+      setUsedPresetFallback(false);
       try {
         const res = await fetch("/api/quizzes/generate-review-tailored", {
           method: "POST",
@@ -72,63 +93,87 @@ export function TailoredReviewQuiz({ course, week, title, quizId }: TailoredRevi
           }),
         });
 
-        const data = await res.json();
-
-        if (!data.success) {
-          throw new Error(data.error || "Failed to generate review questions");
-        }
-
-        if (data.weakTopics) {
-          setWeakTopics(data.weakTopics);
-        }
-
-        if (data.unclearConcepts) {
-          setUnclearConcepts(data.unclearConcepts);
-          // Also set them for post-submission display
-          setPostSubmissionConcepts(data.unclearConcepts);
-        }
-
-        if (data.sourceQuizTitle) {
-          setSourceTitle(data.sourceQuizTitle);
-        }
-
-        // Convert MCQuestion array to UiQuiz format
-        const questions = data.questions || [];
-        console.log(`[TailoredReviewQuiz] Received ${questions.length} generated questions`);
-        if (questions.length > 0) {
-          console.log(`[TailoredReviewQuiz] First question:`, questions[0].question.substring(0, 80));
-        }
-        const weekStr = week ? ` - Week ${week}` : "";
-        const displayTitle = `${course}${weekStr}: Review Test`;
-
-        const uiQuiz: UiQuiz = {
-          id: quizId,
-          title: displayTitle,
-          topic: "mixed",
-          difficulty: "mixed",
-          questions: questions.map((q: any, idx: number) => ({
-            id: q.id || `review-q-${idx}`,
-            prompt: q.question || q.prompt,
-            options: q.options || [],
-            correctIdx: q.correctAnswerIndex ?? 0,
-            explanation: q.explanation || "",
-          })),
+        const data = (await res.json()) as {
+          success?: boolean;
+          error?: string;
+          questions?: unknown[];
+          weakTopics?: string[];
+          unclearConcepts?: string[];
+          sourceQuizTitle?: string;
         };
-        console.log(`[TailoredReviewQuiz] Created quiz with ${uiQuiz.questions.length} questions`);
+        if (cancelled) return;
 
-        setQuiz(uiQuiz);
-        setError(null);
+        const rawQuestions = data.questions || [];
+        const tailoredOk = data.success === true && rawQuestions.length > 0;
+
+        if (tailoredOk) {
+          if (data.weakTopics) {
+            setWeakTopics(data.weakTopics);
+          }
+
+          if (data.unclearConcepts) {
+            setUnclearConcepts(data.unclearConcepts);
+            setPostSubmissionConcepts(data.unclearConcepts);
+          }
+
+          if (data.sourceQuizTitle) {
+            setSourceTitle(data.sourceQuizTitle);
+          }
+
+          const weekStr = week ? ` - Week ${week}` : "";
+          const displayTitle = `${course}${weekStr}: Review Test`;
+
+          const uiQuiz: UiQuiz = {
+            id: quizId,
+            title: displayTitle,
+            topic: "mixed",
+            difficulty: "mixed",
+            questions: rawQuestions.map((raw, idx) => {
+              const q = raw as Record<string, unknown>;
+              return {
+                id: (q.id as string) || `review-q-${idx}`,
+                prompt: String(q.question ?? q.prompt ?? ""),
+                options: (Array.isArray(q.options) ? q.options : []) as string[],
+                correctIdx: Number(q.correctAnswerIndex ?? q.correctIdx ?? 0),
+                explanation: String(q.explanation ?? ""),
+              };
+            }),
+          };
+
+          setUsedPresetFallback(false);
+          setQuiz(uiQuiz);
+          setError(null);
+          return;
+        }
+
+        if (applyPresetFallback()) {
+          return;
+        }
+
+        setError(
+          data.success === false
+            ? data.error || "Failed to generate review questions"
+            : "No review questions returned.",
+        );
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Failed to load review questions";
-        setError(msg);
-        console.error("Tailored review error:", err);
+        if (cancelled) return;
+        if (!applyPresetFallback()) {
+          const msg = err instanceof Error ? err.message : "Failed to load review questions";
+          setError(msg);
+          console.error("Tailored review error:", err);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
 
-    loadTailoredQuiz();
-  }, [course, week, quizId, title]);
+    void loadTailoredQuiz();
+    return () => {
+      cancelled = true;
+    };
+  }, [course, week, quizId]);
 
   if (loading) {
     return (
@@ -169,6 +214,12 @@ export function TailoredReviewQuiz({ course, week, title, quizId }: TailoredRevi
       <div className="rounded-lg border border-slate-200 bg-white p-6">
         <h1 className="text-2xl font-bold text-slate-900">{quiz.title}</h1>
         <p className="mt-1 text-sm text-slate-600">Review Test</p>
+        {usedPresetFallback ? (
+          <p className="mt-2 text-xs text-slate-500">
+            Practice questions (same preset as the schedule demo). Upload course materials and complete a cold test to
+            unlock AI-tailored review for this course.
+          </p>
+        ) : null}
         <p className="mt-3 text-sm text-slate-500">
           {quiz.questions.length} questions · mixed difficulty
         </p>

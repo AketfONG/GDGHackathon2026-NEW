@@ -8,7 +8,6 @@ const MARK3220_HOT_ID = "scheduled-mark3220-hot";
 const MARK3220_COLD_ID = "scheduled-mark3220-cold";
 const COMP3511_ID = "scheduled-comp3511-review";
 const ECON2103_ID = "scheduled-econ2103-review";
-const TEMG3950_ID = "scheduled-temg3950-review";
 
 /** Hot and cold default quizzes share the same items; review quizzes use separate banks below. */
 function remapQuestionIdsForQuiz(questions: UiQuizQuestion[], quizId: string): UiQuizQuestion[] {
@@ -24,7 +23,6 @@ export const DEFAULT_SCHEDULED_QUIZ_IDS = [
   MARK3220_COLD_ID,
   COMP3511_ID,
   ECON2103_ID,
-  TEMG3950_ID,
 ] as const;
 
 export function isDefaultScheduledQuizId(id: string): boolean {
@@ -190,79 +188,6 @@ const huma2104Questions: UiQuizQuestion[] = [
     ["One melody with accompaniment only", "Rhythmic and melodic independence between parts", "Only drones", "Unmeasured speech"],
     1,
     "Counterpoint highlights equality and interplay of melodic lines.",
-  ),
-];
-
-const temg3950Questions: UiQuizQuestion[] = [
-  q(
-    `${TEMG3950_ID}-1`,
-    "In the MECE framework, the “ME” stands for categories that are:",
-    ["Mutually Exhaustive", "Mutually Exclusive", "Mostly Equal", "Marginally Effective"],
-    1,
-    "ME = Mutually Exclusive (no problematic overlap between buckets at the same level).",
-  ),
-  q(
-    `${TEMG3950_ID}-2`,
-    "In MECE, the “CE” stands for categories that are:",
-    ["Collectively Exhaustive", "Creatively Empty", "Cost Effective only", "Customer Exclusive"],
-    0,
-    "CE = Collectively Exhaustive (together they cover the whole space you care about).",
-  ),
-  q(
-    `${TEMG3950_ID}-3`,
-    "If two buckets at the same level of a breakdown both include the same revenue stream, you violate:",
-    ["Collective exhaustiveness", "Mutual exclusivity", "Neither", "Only formatting rules"],
-    1,
-    "Overlap breaks mutual exclusivity unless you redefine buckets clearly.",
-  ),
-  q(
-    `${TEMG3950_ID}-4`,
-    "If your framework omits an entire major customer segment, you violate:",
-    ["Mutual exclusivity", "Collective exhaustiveness", "Only style guidelines", "Only the title slide"],
-    1,
-    "Missing a whole branch means the split is not collectively exhaustive.",
-  ),
-  q(
-    `${TEMG3950_ID}-5`,
-    "Issue trees used in consulting problem solving are often designed to be MECE at each level to:",
-    ["Avoid doing any math", "Reduce overlap and gaps in logic", "Replace all data", "Eliminate stakeholders"],
-    1,
-    "MECE keeps the logic clean: no double counting, no blind spots.",
-  ),
-  q(
-    `${TEMG3950_ID}-6`,
-    "The Pyramid Principle (Barbara Minto) pairs well with MECE because it stresses:",
-    ["Random bullet order", "Grouping supporting ideas under a single answer, without overlap/gaps", "Only storytelling", "Only fonts"],
-    1,
-    "Top-down logic with MECE groupings clarifies the argument.",
-  ),
-  q(
-    `${TEMG3950_ID}-7`,
-    "A MECE split of “profit” might separate revenue drivers and cost drivers because together they:",
-    ["Are unrelated", "Cover profit levers while avoiding double counting at that level", "Always require 10 buckets", "Ignore fixed costs"],
-    1,
-    "At a high level, revenue vs cost is a classic exhaustive partition for profit.",
-  ),
-  q(
-    `${TEMG3950_ID}-8`,
-    "“MECE” is most associated with structured thinking in contexts such as:",
-    ["Only poetry workshops", "Management consulting–style problem decomposition", "Only sports statistics", "Only tax filing for individuals"],
-    1,
-    "MECE is a standard consulting hygiene for frameworks and trees.",
-  ),
-  q(
-    `${TEMG3950_ID}-9`,
-    "If you label buckets “Region A” and “Key accounts,” and some key accounts sit in Region A, your framework is likely:",
-    ["MECE by default", "Not MECE due to overlap between dimensions", "CE but not ME", "Always fine"],
-    1,
-    "Mixing overlapping dimensions in the same layer breaks mutual exclusivity.",
-  ),
-  q(
-    `${TEMG3950_ID}-10`,
-    "A good MECE checklist before presenting a framework is:",
-    ["Overlap is fine if it looks pretty", "Can every item fit in exactly one bucket, and are all items covered?", "Use as many buckets as possible", "Skip the hypothesis"],
-    1,
-    "Sanity-check for exclusivity and exhaustiveness before locking the storyline.",
   ),
 ];
 
@@ -541,13 +466,6 @@ const byId: Record<string, UiQuiz> = {
     topic: "Monopoly",
     difficulty: "MEDIUM",
     questions: econ2103Questions,
-  },
-  [TEMG3950_ID]: {
-    id: TEMG3950_ID,
-    title: "TEMG3950 · MECE Frameworks — Review",
-    topic: "MECE Frameworks",
-    difficulty: "MEDIUM",
-    questions: temg3950Questions,
   },
 };
 

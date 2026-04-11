@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { AppDemoMode } from "@/lib/app-demo-mode";
 
-/** Client mirror of cookie `study_agent_app_mode` via GET /api/preferences/app-mode */
+/** Client mirror of cookie `impromptu_app_mode` via GET /api/preferences/app-mode */
 export function useAppDemoMode() {
   const [mode, setMode] = useState<AppDemoMode>("live");
   const [loaded, setLoaded] = useState(false);

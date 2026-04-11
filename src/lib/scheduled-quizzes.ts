@@ -101,15 +101,6 @@ export function getScheduledCourseQuizzes(
       dueDate: addDaysToLocalYmd(d2, -7),
     },
     {
-      id: "scheduled-temg3950-review",
-      course: "TEMG3950",
-      subtopic: "MECE Frameworks",
-      testType: "review",
-      title: "Review",
-      status: "not-started",
-      dueDate: addDaysLocalDateString(referenceDate, 4),
-    },
-    {
       id: "scheduled-huma2104-hot",
       course: "HUMA2104",
       subtopic: "Counterpoint",
@@ -173,7 +164,6 @@ export function getScheduledStudyTasks(
   if (options?.includePresetQuizzes === false) return [];
 
   const d2 = addDaysLocalDateString(referenceDate, 2);
-  const d4 = addDaysLocalDateString(referenceDate, 4);
   const d5 = addDaysLocalDateString(referenceDate, 5);
   const dApr15 = april15DateString(referenceDate);
   const dApr18 = april18DateString(referenceDate);
@@ -190,17 +180,6 @@ export function getScheduledStudyTasks(
       time: `Due ${d2}`,
       duration: "45 min",
       description: "Central Limit Theorem practice — open from Quizzes or from a selected calendar day.",
-    },
-    {
-      id: "scheduled-temg3950-review",
-      date: d4,
-      title: "TEMG3950 — Review",
-      type: "review_quiz",
-      topic: "TEMG3950 · MECE Frameworks",
-      priority: "medium",
-      time: `Due ${d4}`,
-      duration: "60 min",
-      description: "MECE frameworks review — listed under Review on the Quizzes page.",
     },
     {
       id: "scheduled-huma2104-hot",

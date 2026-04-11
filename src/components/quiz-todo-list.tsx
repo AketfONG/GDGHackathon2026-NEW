@@ -43,12 +43,16 @@ export function QuizTodoList({
   if (loadFailed && (!quizzes || quizzes.length === 0)) {
     return (
       <div
-        className={`rounded-lg border border-amber-200 bg-amber-50 text-center ${compact ? "p-3" : "p-6"}`}
+        className={
+          compact
+            ? "py-1 text-center"
+            : `rounded-2xl border-2 border-amber-200 bg-amber-50 text-center p-6`
+        }
       >
-        <p className={`text-slate-800 ${compact ? "text-base" : ""}`}>
+        <p className={`text-slate-800 ${compact ? "text-sm" : ""}`}>
           Could not load cold tests (database offline or misconfigured).
         </p>
-        <p className={`text-slate-600 ${compact ? "mt-1.5 text-sm" : "mt-2 text-sm"}`}>
+        <p className={`text-slate-600 ${compact ? "mt-1 text-xs" : "mt-2 text-sm"}`}>
           Check{" "}
           <code className={`rounded bg-white px-1 ${compact ? "text-sm" : "text-xs"}`}>MONGODB_URI</code>, then
           refresh. Full list:{" "}
@@ -63,9 +67,9 @@ export function QuizTodoList({
 
   if (!quizzes || quizzes.length === 0) {
     return (
-      <div className={`rounded-lg border border-slate-200 bg-slate-50 text-center ${compact ? "p-3" : "p-6"}`}>
-        <p className={`text-slate-600 ${compact ? "text-base" : ""}`}>No cold tests yet.</p>
-        <p className={`text-slate-500 ${compact ? "mt-1.5 text-sm" : "mt-2 text-sm"}`}>
+      <div className={compact ? "py-1 text-center" : "rounded-2xl border-2 border-slate-200 bg-slate-50 p-6 text-center"}>
+        <p className={`text-slate-600 ${compact ? "text-sm" : ""}`}>No cold tests yet.</p>
+        <p className={`text-slate-500 ${compact ? "mt-1 text-xs" : "mt-2 text-sm"}`}>
           Use{" "}
           <Link href="/upload" className="font-semibold text-blue-600 underline hover:text-blue-700">
             Upload Materials
@@ -80,7 +84,7 @@ export function QuizTodoList({
     );
   }
 
-  const gap = compact ? "space-y-2" : "space-y-3";
+  const gap = compact ? "divide-y divide-slate-100" : "space-y-3";
   return (
     <div className={gap}>
       {quizzes.map((quiz) => {
@@ -89,9 +93,11 @@ export function QuizTodoList({
         return (
           <div
             key={quiz.id}
-            className={`flex flex-col rounded-lg border border-slate-200 bg-white sm:flex-row sm:items-center sm:justify-between sm:hover:bg-slate-50 ${
-              compact ? "gap-2 p-2.5" : "gap-3 p-4"
-            }`}
+            className={
+              compact
+                ? "flex flex-col gap-2 py-2.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+                : `flex flex-col gap-3 rounded-2xl border-2 border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between sm:hover:bg-slate-50`
+            }
           >
             <div className="min-w-0 flex-1">
               <h3 className={`font-semibold text-slate-900 ${compact ? "text-base leading-snug" : ""}`}>
@@ -99,18 +105,18 @@ export function QuizTodoList({
               </h3>
               <div className={`flex flex-wrap ${compact ? "mt-0.5 gap-1.5" : "mt-1 gap-2"}`}>
                 <span
-                  className={`inline-block rounded bg-blue-100 font-medium text-blue-800 ${compact ? "px-2 py-0.5 text-xs" : "px-2 py-1 text-xs"}`}
+                  className={`inline-flex items-center rounded-full bg-blue-100 font-medium text-blue-800 ${compact ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-xs"}`}
                 >
                   {quiz.topic}
                 </span>
                 <span
-                  className={`inline-block rounded font-medium ${difficultyStyles(quiz.difficulty)} ${compact ? "px-2 py-0.5 text-xs" : "px-2 py-1 text-xs"}`}
+                  className={`inline-flex items-center rounded-full font-medium ${difficultyStyles(quiz.difficulty)} ${compact ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-xs"}`}
                 >
                   {quiz.difficulty}
                 </span>
                 {done && quiz.scorePercent !== undefined ? (
                   <span
-                    className={`inline-block rounded bg-emerald-100 font-medium text-emerald-800 ${compact ? "px-2 py-0.5 text-xs" : "px-2 py-1 text-xs"}`}
+                    className={`inline-flex items-center rounded-full bg-emerald-100 font-medium text-emerald-800 ${compact ? "px-2.5 py-0.5 text-xs" : "px-3 py-1 text-xs"}`}
                   >
                     {quiz.scorePercent}%
                   </span>
@@ -119,8 +125,8 @@ export function QuizTodoList({
             </div>
             <Link
               href={`/quizzes/${encodeURIComponent(quiz.id)}`}
-              className={`shrink-0 rounded-md bg-blue-600 text-center font-semibold text-white hover:bg-blue-700 sm:ml-2 ${
-                compact ? "px-3 py-2 text-sm" : "px-4 py-2 text-sm sm:ml-4"
+              className={`inline-flex shrink-0 items-center justify-center rounded-full bg-blue-600 text-center text-sm font-semibold !text-white transition-colors hover:bg-blue-700 sm:ml-2 ${
+                compact ? "px-5 py-2" : "px-6 py-2.5 sm:ml-4"
               }`}
             >
               {label} →

@@ -13,7 +13,6 @@ const MOCK_COURSES = [
   { id: "math2411", name: "MATH2411" },
   { id: "huma2104", name: "HUMA2104" },
   { id: "mark3220", name: "MARK3220" },
-  { id: "temg3950", name: "TEMG3950" },
 ];
 
 type UploadedFilesMap = Record<string, Record<string, string[]>>;
@@ -38,6 +37,11 @@ function slugCourseName(name: string): string {
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9-]/g, "");
   return t.length > 0 ? t : "course";
+}
+
+/** Uppercase ASCII letters only so course codes (e.g. COMP3511) stay capital while digits/spaces/punctuation are unchanged. */
+function uppercaseCourseLetters(value: string): string {
+  return value.replace(/[a-z]/g, (ch) => ch.toUpperCase());
 }
 
 function normalizeWeekKeyFromSettings(raw: string | null): number | null {
@@ -111,7 +115,7 @@ export default function UploadMaterialsPage() {
     } else {
       const slug = settings.uploadLastCourseId;
       if (slug && slug.length > 0) {
-        setLiveCourseName(slug.replace(/-/g, " "));
+        setLiveCourseName(uppercaseCourseLetters(slug.replace(/-/g, " ")));
       }
     }
 
@@ -289,7 +293,7 @@ export default function UploadMaterialsPage() {
       <TopNav />
       <main className="mx-auto w-full max-w-4xl px-4 py-8">
         <section className="mb-8">
-          <Link href="/" className="mb-4 inline-block text-blue-600 hover:text-blue-700">
+          <Link href="/" className="link-arrow-nav mb-4 inline-block">
             ← Back to Home
           </Link>
           <h1 className="text-3xl font-semibold text-slate-900">Upload Course Materials</h1>
@@ -359,7 +363,7 @@ export default function UploadMaterialsPage() {
                 id="live-course"
                 type="text"
                 value={liveCourseName}
-                onChange={(e) => setLiveCourseName(e.target.value)}
+                onChange={(e) => setLiveCourseName(uppercaseCourseLetters(e.target.value))}
                 placeholder="e.g. COMP 3511 — Operating Systems"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 autoComplete="off"

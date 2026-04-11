@@ -82,13 +82,13 @@ export default async function QuizzesPage() {
         </div>
 
         {!quizzesUnavailable &&
-        coldQuizzes.some((q) => q.testType === "cold" && isMongoObjectIdString(q.id)) ? (
+        coldQuizzes.some((q) => isMongoObjectIdString(q.id)) ? (
           <div className="rounded-2xl border-2 border-slate-200 bg-white p-5">
-            <div className="font-semibold text-slate-900">Cold test</div>
+            <div className="font-semibold text-slate-900">Saved quizzes</div>
             <p className="mt-1 text-sm text-slate-600">
-              These quizzes were generated from files you uploaded for the listed course and week. Use{" "}
-              <span className="font-semibold">Delete quiz</span> on a card to remove it and clear saved attempts for
-              that quiz (cannot be undone).
+              Upload-generated cold tests and completed hot follow-ups share the same saved quiz. Use{" "}
+              <span className="font-semibold">Delete quiz</span> on a card after you have taken the quiz to remove it
+              and clear attempts (cannot be undone).
             </p>
           </div>
         ) : null}

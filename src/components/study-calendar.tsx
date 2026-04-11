@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { IcsUploadButton } from "@/components/ics-upload-button";
@@ -80,8 +79,8 @@ export function StudyCalendar({
 
   useEffect(() => {
     const onMode = () => loadCalendar();
-    window.addEventListener("study-agent-app-mode", onMode);
-    return () => window.removeEventListener("study-agent-app-mode", onMode);
+    window.addEventListener("impromptu-app-mode", onMode);
+    return () => window.removeEventListener("impromptu-app-mode", onMode);
   }, [loadCalendar]);
 
   useEffect(() => {
@@ -181,23 +180,31 @@ export function StudyCalendar({
           <p className={`text-xs ${uploadMsg.kind === "ok" ? "text-emerald-700" : "text-rose-700"}`}>{uploadMsg.text}</p>
         ) : null}
         {loadError ? <p className="text-xs text-amber-800">{loadError}</p> : null}
-        <Link
-          href="/schedule"
-          className="block text-center text-sm font-medium text-slate-700 underline hover:text-slate-900 sm:text-left"
-        >
-          Full calendar & schedule →
-        </Link>
       </div>
 
       <div className={`flex items-center justify-between ${compact ? "mb-2" : "mb-4"}`}>
-        <button type="button" onClick={handlePrevMonth} className="rounded px-2 py-1 text-slate-600 hover:bg-slate-100">
-          ←
+        <button
+          type="button"
+          onClick={handlePrevMonth}
+          aria-label="Previous month"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200/90 bg-slate-100 text-slate-700 transition-colors hover:bg-slate-200/90"
+        >
+          <span className="text-base leading-none" aria-hidden>
+            ◀
+          </span>
         </button>
         <h3 className="font-semibold text-slate-900" suppressHydrationWarning>
           {monthName}
         </h3>
-        <button type="button" onClick={handleNextMonth} className="rounded px-2 py-1 text-slate-600 hover:bg-slate-100">
-          →
+        <button
+          type="button"
+          onClick={handleNextMonth}
+          aria-label="Next month"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-200/90 bg-slate-100 text-slate-700 transition-colors hover:bg-slate-200/90"
+        >
+          <span className="text-base leading-none" aria-hidden>
+            ▶
+          </span>
         </button>
       </div>
 
@@ -223,13 +230,13 @@ export function StudyCalendar({
           if (day !== null) {
             if (isSelected) {
               cellClass =
-                "border-2 border-blue-500 bg-blue-50 text-slate-900 shadow-sm hover:bg-blue-100 z-[1]";
+                "border-2 border-blue-500 bg-blue-50 text-slate-900 hover:bg-blue-100 z-[1]";
             } else if (hasTask) {
               cellClass =
-                "border-2 border-blue-300 bg-blue-100 text-slate-900 shadow-sm hover:border-blue-400";
+                "border-2 border-blue-300 bg-blue-100 text-slate-900 hover:border-blue-400";
             } else if (hasIcs) {
               cellClass =
-                "border-2 border-emerald-300 bg-emerald-50 text-slate-900 shadow-sm hover:border-emerald-400";
+                "border-2 border-emerald-300 bg-emerald-50 text-slate-900 hover:border-emerald-400";
             } else {
               cellClass = "border border-slate-200 bg-white text-slate-800 hover:border-slate-300";
             }
@@ -240,7 +247,7 @@ export function StudyCalendar({
               key={index}
               type="button"
               onClick={() => handleDateClick(day)}
-              className={`aspect-square rounded text-sm font-semibold transition-all ${cellClass}`}
+              className={`aspect-square rounded-lg text-sm font-semibold transition-all ${cellClass}`}
             >
               {day}
             </button>
@@ -251,23 +258,22 @@ export function StudyCalendar({
       <div className={`space-y-1.5 ${compact ? "mt-2 text-[11px]" : "mt-4 text-xs"}`}>
         <div className="flex items-center gap-2">
           <div
-            className={`shrink-0 rounded border-2 border-blue-300 bg-blue-100 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
+            className={`shrink-0 rounded-full border-2 border-blue-300 bg-blue-100 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
           />
           <span className="text-slate-700">Day with quiz / study tasks</span>
         </div>
         <div className="flex items-center gap-2">
           <div
-            className={`shrink-0 rounded border-2 border-emerald-300 bg-emerald-50 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
+            className={`shrink-0 rounded-full border-2 border-emerald-300 bg-emerald-50 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
           />
           <span className="text-slate-700">Imported .ics only</span>
         </div>
         <div className="flex items-center gap-2">
           <div
-            className={`shrink-0 rounded border-2 border-blue-500 bg-blue-50 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
+            className={`shrink-0 rounded-full border-2 border-blue-500 bg-blue-50 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
           />
           <span className="text-slate-700">Selected day</span>
         </div>
-        <p className="text-slate-500">Same colors as the full schedule calendar.</p>
       </div>
     </div>
   );
