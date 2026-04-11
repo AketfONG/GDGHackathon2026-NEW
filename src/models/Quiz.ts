@@ -6,6 +6,8 @@ const quizQuestionSchema = new Schema(
     options: { type: [String], required: true },
     correctIdx: { type: Number, required: true },
     explanation: { type: String, default: null },
+    /** Topic/concept this question covers — used for tailored review question generation */
+    topic: { type: String, default: null },
   },
   { _id: true },
 );

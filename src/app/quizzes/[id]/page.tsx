@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TopNav } from "@/components/top-nav";
 import { QuizAttemptForm } from "@/components/quiz-attempt-form";
+import { TailoredReviewQuiz } from "@/components/tailored-review-quiz";
 import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/mongodb";
 import { QuizModel } from "@/models/Quiz";
@@ -15,6 +16,33 @@ import { isMongoObjectIdString } from "@/lib/mongo-object-id";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * Detect if ID matches a review quiz pattern: "scheduled-{COURSE}-review" or similar
+ * Returns { isReview: boolean, course?: string, week?: string }
+ */
+function parseReviewQuizId(id: string): { isReview: boolean; course?: string; week?: string } {
+  // Pattern: scheduled-COMP3511-review, scheduled-ECON2103-review, etc.
+  const match = id.match(/^scheduled-([A-Z0-9]+)(?:[-]?week[-]?(\d+))?-review$/i);
+  if (match) {
+    return {
+      isReview: true,
+      course: match[1],
+      week: match[2],
+    };
+  }
+
+  // Also handle: scheduled-TEMG3950-review
+  const match2 = id.match(/^scheduled-([A-Z0-9]+)-review$/i);
+  if (match2) {
+    return {
+      isReview: true,
+      course: match2[1],
+    };
+  }
+
+  return { isReview: false };
+}
+
 export default async function QuizTakePage({
   params,
   searchParams,
@@ -26,6 +54,30 @@ export default async function QuizTakePage({
   const { mode } = await searchParams;
   const isHotFollowup = mode === "hot-followup";
 
+  // Check if this is a review quiz first
+  const reviewCheck = parseReviewQuizId(id);
+  if (reviewCheck.isReview) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <TopNav />
+        <main className="mx-auto w-full max-w-3xl px-4 py-8">
+          <Link href="/quizzes" className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+            ← Back to Quizzes
+          </Link>
+          <div className="mt-4">
+            <TailoredReviewQuiz
+              course={reviewCheck.course || "Course"}
+              week={reviewCheck.week || ""}
+              title={`${reviewCheck.course} Review`}
+              quizId={id}
+            />
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Handle demo/default quizzes
   const cookieStore = await cookies();
   const demo = isPresetDemoContentEnabled(getDemoModeFromCookieStore(cookieStore));
   if (!demo && isDefaultScheduledQuizId(id)) {

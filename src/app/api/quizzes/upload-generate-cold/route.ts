@@ -59,6 +59,7 @@ function mapMcqToQuizRows(questions: MCQuestion[]) {
         options: options.length >= 2 ? options : ["A", "B", "C", "D"],
         correctIdx,
         explanation: q.explanation ?? "",
+        topic: q.topic ?? "",
       };
     })
     .filter((row) => row.prompt.length > 0);
