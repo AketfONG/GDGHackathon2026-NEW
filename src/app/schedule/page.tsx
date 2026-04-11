@@ -3,10 +3,6 @@
 import { TopNav } from "@/components/top-nav";
 import type { IcsEventView } from "@/components/dashboard-calendar-quizzes";
 import { IcsUploadButton } from "@/components/ics-upload-button";
-import { getScheduledCourseQuizzes, getScheduledStudyTasks } from "@/lib/scheduled-quizzes";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   getScheduledCourseQuizzes,
   getScheduledStudyTasks,
@@ -14,7 +10,8 @@ import {
   type ScheduledStudyTask,
 } from "@/lib/scheduled-quizzes";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface StudyTask {
   id: string;
@@ -118,14 +115,6 @@ export default function SchedulePage() {
   const [icsImport, setIcsImport] = useState<CalendarImportClient | null>(null);
   const [icsMsg, setIcsMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
-  const studyPlan = useMemo(() => {
-    const tasks = getScheduledStudyTasks();
-    const quizById = new Map(getScheduledCourseQuizzes().map((q) => [q.id, q]));
-    return tasks.map((t) => {
-      const cq = quizById.get(t.id);
-      if (t.type === "review_quiz" && cq?.testType === "review") {
-        const sub = cq.subtopic?.trim();
-        return { ...t, unclearConcepts: sub ? [sub] : [] };
   const [studyPlan, setStudyPlan] = useState<StudyTask[]>(() =>
     enrichTasksWithReviewConcepts(getScheduledStudyTasks()),
   );
@@ -390,20 +379,6 @@ export default function SchedulePage() {
                               {icsForDay.length} cal event{icsForDay.length !== 1 ? "s" : ""}
                             </p>
                           ) : null}
-                          <p className="text-xs font-medium text-blue-700">{taskCount} task{taskCount !== 1 ? "s" : ""}</p>
-                          <div className="flex flex-wrap gap-1">
-                            {tasksByDate[dateString].slice(0, 2).map((task) => {
-                              const colors = getTypeColor(task.type);
-                              return (
-                                <span
-                                  key={`${task.date}-${task.type}-${task.id}`}
-                                  className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text}`}
-                                >
-                                  {getTypeLabel(task.type).split(" ")[0]}
-                                </span>
-                              );
-                            })}
-                          </div>
                         </div>
                       )}
                     </button>
