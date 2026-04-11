@@ -22,6 +22,7 @@
     "firebase-admin": "^13.8.0",
     "jszip": "^3.10.1",
     "mammoth": "^1.12.0",
+    "node-ical": "^0.26.0",
     "mongodb": "^7.1.1",
     "mongoose": "^9.4.1",
     "next": "16.2.3",

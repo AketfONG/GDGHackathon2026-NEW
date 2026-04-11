@@ -83,10 +83,12 @@ export async function loadUploadedColdQuizzes(): Promise<{
     }
 
     const bundles: UploadedColdQuizBundle[] = rows
-      .filter((quiz: { course?: unknown; week?: unknown }) => {
-        return String(quiz.course ?? "").trim() && String(quiz.week ?? "").trim();
+      .filter((quiz: unknown) => {
+        const q = quiz as { course?: unknown; week?: unknown };
+        return Boolean(String(q.course ?? "").trim() && String(q.week ?? "").trim());
       })
-      .map((quiz: Record<string, unknown>) => {
+      .map((raw) => {
+        const quiz = raw as Record<string, unknown>;
         const qid = String(quiz._id);
         const latest = latestByQuizId.get(qid);
         const totalQ = Array.isArray(quiz.questions) ? quiz.questions.length : 0;
