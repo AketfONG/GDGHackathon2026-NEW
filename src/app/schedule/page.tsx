@@ -9,6 +9,11 @@ import {
   taskQuizHref,
   type ScheduledStudyTask,
 } from "@/lib/scheduled-quizzes";
+import { formatIcsUploadSuccessMessage } from "@/lib/ics-upload-message";
+import {
+  getScheduleTaskTypeColor as getTypeColor,
+  getScheduleTaskTypeLabel as getTypeLabel,
+} from "@/lib/schedule-task-palette";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -53,36 +58,6 @@ function canOpenQuizTask(t: StudyTask): boolean {
     /^[a-f\d]{24}$/i.test(t.id)
   );
 }
-
-const getTypeColor = (type: string) => {
-  switch (type) {
-    case "hot_quiz":
-      return { bg: "bg-red-100", text: "text-red-800", border: "border-red-300" };
-    case "cold_quiz":
-      return { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-300" };
-    case "review_quiz":
-      return { bg: "bg-green-100", text: "text-green-800", border: "border-green-300" };
-    case "study_topic":
-      return { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-300" };
-    default:
-      return { bg: "bg-slate-100", text: "text-slate-800", border: "border-slate-300" };
-  }
-};
-
-const getTypeLabel = (type: string) => {
-  switch (type) {
-    case "hot_quiz":
-      return "Hot Quiz";
-    case "cold_quiz":
-      return "Cold Quiz";
-    case "review_quiz":
-      return "Review Quiz";
-    case "study_topic":
-      return "Study";
-    default:
-      return "Task";
-  }
-};
 
 function formatImportedEventTime(isoStart: string, isoEnd: string) {
   const start = new Date(isoStart);
@@ -176,6 +151,7 @@ export default function SchedulePage() {
       count?: number;
       backendDisabled?: boolean;
       message?: string;
+      replacedPrevious?: boolean;
     };
     if (!res.ok) {
       const err =
@@ -186,7 +162,10 @@ export default function SchedulePage() {
       return;
     }
     await loadIcs();
-    setIcsMsg({ kind: "ok", text: `Imported ${data.count ?? 0} events from your calendar.` });
+    setIcsMsg({
+      kind: "ok",
+      text: formatIcsUploadSuccessMessage(data.count ?? 0, Boolean(data.replacedPrevious)),
+    });
     router.refresh();
   }
 
@@ -261,7 +240,8 @@ export default function SchedulePage() {
               <div className="mb-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <h3 className="text-sm font-semibold text-slate-900">Imported calendar</h3>
                 <p className="mt-1 text-xs text-slate-600">
-                  Same storage as the dashboard calendar — one file per account replaces the previous import.
+                  Same storage as the dashboard calendar. In live mode, a new upload overwrites your stored calendar;
+                  only the latest file is kept.
                 </p>
                 <div className="mt-3 max-w-md">
                   <IcsUploadButton variant="compact" label="Upload .ics" onFile={uploadIcsFile} />

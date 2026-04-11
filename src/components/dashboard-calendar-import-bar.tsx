@@ -17,7 +17,7 @@ export function DashboardCalendarImportBar({ calendarStorageReady }: Props) {
         <p className="text-sm font-medium text-slate-900">Import calendar</p>
         <p className="text-xs text-slate-600">
           Upload an <code className="rounded bg-slate-100 px-1">.ics</code> file (Google, Apple, Outlook). Recurring events are expanded into
-          individual dates.
+          individual dates. In live mode, each new import replaces your previously stored calendar.
         </p>
       </div>
       <div className="flex min-w-[12rem] flex-col gap-1 sm:items-end">

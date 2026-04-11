@@ -5,7 +5,6 @@ import { isMongoObjectIdString } from "@/lib/mongo-object-id";
 export interface CourseQuiz {
   id: string;
   course: string;
-  /** Shown after the course on the first line, e.g. "MATH2411 · Probability". */
   subtopic?: string;
   week?: number;
   testType: "cold" | "hot" | "review";
@@ -20,27 +19,28 @@ export interface CourseQuiz {
   externalHref?: string;
 }
 
-function getTestTypeColor(testType: "cold" | "hot" | "review"): string {
+/** Cards: white surface + slate outline; soft left accent (nav-adjacent tones) */
+function getTestTypeCardStyle(testType: "cold" | "hot" | "review"): string {
   switch (testType) {
     case "cold":
-      return "bg-blue-50 border-blue-200";
+      return "border-slate-200 border-l-4 border-l-sky-400 bg-white";
     case "hot":
-      return "bg-red-50 border-red-200";
+      return "border-slate-200 border-l-4 border-l-rose-400 bg-white";
     case "review":
-      return "bg-purple-50 border-purple-200";
+      return "border-slate-200 border-l-4 border-l-violet-400 bg-white";
     default:
-      return "bg-slate-50 border-slate-200";
+      return "border-slate-200 bg-white";
   }
 }
 
 function getTestTypeBadge(testType: "cold" | "hot" | "review"): string {
   switch (testType) {
     case "cold":
-      return "bg-blue-100 text-blue-800";
+      return "bg-sky-50 text-sky-700";
     case "hot":
-      return "bg-red-100 text-red-800";
+      return "bg-rose-50 text-rose-700";
     case "review":
-      return "bg-purple-100 text-purple-800";
+      return "bg-violet-50 text-violet-700";
     default:
       return "bg-slate-100 text-slate-800";
   }
@@ -67,51 +67,43 @@ function quizHref(quiz: CourseQuiz): string {
   return quiz.externalHref ?? `/quizzes/${encodeURIComponent(quiz.id)}`;
 }
 
-function courseHeading(quiz: CourseQuiz): string {
-  return quiz.subtopic ? `${quiz.course} · ${quiz.subtopic}` : quiz.course;
-}
-
-function sortCold(a: CourseQuiz, b: CourseQuiz): number {
+/** Soonest due date first (YYYY-MM-DD ascending); missing dates last; then course, week, id. */
+function sortQuizzesByDueDateAsc(a: CourseQuiz, b: CourseQuiz): number {
+  if (a.dueDate && b.dueDate && a.dueDate !== b.dueDate) {
+    return a.dueDate.localeCompare(b.dueDate);
+  }
+  if (a.dueDate && !b.dueDate) return -1;
+  if (!a.dueDate && b.dueDate) return 1;
   const byCourse = a.course.localeCompare(b.course);
   if (byCourse !== 0) return byCourse;
-  return (a.week || 0) - (b.week || 0);
+  if ((a.week || 0) !== (b.week || 0)) return (a.week || 0) - (b.week || 0);
+  return a.id.localeCompare(b.id);
 }
 
-function sortHot(a: CourseQuiz, b: CourseQuiz): number {
-  const byCourse = a.course.localeCompare(b.course);
-  if (byCourse !== 0) return byCourse;
-  if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
-  if (a.dueDate) return -1;
-  if (b.dueDate) return 1;
-  return a.title.localeCompare(b.title);
-}
-
-function sortReview(a: CourseQuiz, b: CourseQuiz): number {
-  return a.course.localeCompare(b.course);
-}
+/** Primary pill: soft fills + forced white label (overrides default link color) */
+const primaryPillBase =
+  "no-underline px-5 py-2 text-sm font-semibold text-white visited:text-white hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 
 function ColdHotQuizCard({ quiz }: { quiz: CourseQuiz }) {
   const isHot = quiz.testType === "hot";
   const startCls = isHot
-    ? "bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-    : "bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700";
+    ? `bg-rose-400 ${primaryPillBase} transition-colors hover:bg-rose-500 focus-visible:outline-rose-500`
+    : `bg-sky-400 ${primaryPillBase} transition-colors hover:bg-[#3498db] focus-visible:outline-sky-500`;
   const continueCls = isHot
-    ? "bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-    : "bg-yellow-600 px-4 py-2 text-sm font-semibold text-white hover:bg-yellow-700";
+    ? `bg-rose-400 ${primaryPillBase} transition-colors hover:bg-rose-500 focus-visible:outline-rose-500`
+    : `bg-amber-400 ${primaryPillBase} transition-colors hover:bg-amber-500 focus-visible:outline-amber-600`;
   const retakeCls = isHot
-    ? "border border-red-300 px-4 py-2 text-sm font-semibold text-red-800 hover:bg-red-50"
-    : "border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50";
+    ? "border-2 border-rose-100 bg-white px-5 py-2 text-sm font-semibold text-rose-800 transition-colors hover:bg-rose-50"
+    : "border-2 border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50";
 
   return (
-    <div
-      className={`rounded-lg border p-5 ${getTestTypeColor(quiz.testType)} transition hover:shadow-md`}
-    >
+    <div className={`rounded-2xl border-2 p-5 ${getTestTypeCardStyle(quiz.testType)}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-800">{courseHeading(quiz)}</p>
+          <p className="text-sm font-semibold text-slate-800">{quiz.course}</p>
           <div className="mt-1 flex flex-wrap items-center gap-3">
             <span
-              className={`inline-block rounded px-2 py-1 text-xs font-semibold ${getTestTypeBadge(quiz.testType)}`}
+              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${getTestTypeBadge(quiz.testType)}`}
             >
               {quiz.testType.toUpperCase()}
             </span>
@@ -128,7 +120,7 @@ function ColdHotQuizCard({ quiz }: { quiz: CourseQuiz }) {
         </div>
         <div className="shrink-0 text-right">
           <span
-            className={`inline-block rounded px-2 py-1 text-xs font-semibold ${getStatusBadge(quiz.status)}`}
+            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${getStatusBadge(quiz.status)}`}
           >
             {quiz.status === "not-started"
               ? "Not Started"
@@ -150,7 +142,7 @@ function ColdHotQuizCard({ quiz }: { quiz: CourseQuiz }) {
         {quiz.status === "not-started" ? (
           <Link
             href={quizHref(quiz)}
-            className={`inline-flex items-center justify-center rounded-md ${startCls}`}
+            className={`inline-flex items-center justify-center rounded-full ${startCls}`}
           >
             Start Quiz
           </Link>
@@ -158,7 +150,7 @@ function ColdHotQuizCard({ quiz }: { quiz: CourseQuiz }) {
         {quiz.status === "in-progress" ? (
           <Link
             href={quizHref(quiz)}
-            className={`inline-flex items-center justify-center rounded-md ${continueCls}`}
+            className={`inline-flex items-center justify-center rounded-full ${continueCls}`}
           >
             Continue
           </Link>
@@ -167,13 +159,13 @@ function ColdHotQuizCard({ quiz }: { quiz: CourseQuiz }) {
           <>
             <Link
               href={quizHref(quiz)}
-              className="inline-flex items-center justify-center rounded-md bg-slate-600 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+              className={`inline-flex items-center justify-center rounded-full bg-slate-600 ${primaryPillBase} transition-colors hover:bg-slate-700 focus-visible:outline-slate-600`}
             >
               Review
             </Link>
             <Link
               href={quizHref(quiz)}
-              className={`inline-flex items-center justify-center rounded-md ${retakeCls}`}
+              className={`inline-flex items-center justify-center rounded-full ${retakeCls}`}
             >
               Retake
             </Link>
@@ -190,15 +182,13 @@ function ColdHotQuizCard({ quiz }: { quiz: CourseQuiz }) {
 /** Same full-width card layout as cold/hot (no grid column), so single review rows match width. */
 function ReviewQuizCard({ quiz }: { quiz: CourseQuiz }) {
   return (
-    <div
-      className={`rounded-lg border p-5 ${getTestTypeColor(quiz.testType)} transition hover:shadow-md`}
-    >
+    <div className={`rounded-2xl border-2 p-5 ${getTestTypeCardStyle(quiz.testType)}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-800">{courseHeading(quiz)}</p>
+          <p className="text-sm font-semibold text-slate-800">{quiz.course}</p>
           <div className="mt-1 flex items-center gap-2">
             <span
-              className={`inline-block rounded px-2 py-1 text-xs font-semibold ${getTestTypeBadge(quiz.testType)}`}
+              className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${getTestTypeBadge(quiz.testType)}`}
             >
               REVIEW
             </span>
@@ -209,13 +199,10 @@ function ReviewQuizCard({ quiz }: { quiz: CourseQuiz }) {
               Due: {new Date(quiz.dueDate).toLocaleDateString()}
             </p>
           ) : null}
-          {quiz.topic && !quiz.subtopic ? (
-            <p className="mt-1 text-sm text-slate-600">Topic: {quiz.topic}</p>
-          ) : null}
         </div>
         <div className="shrink-0 text-right">
           <span
-            className={`inline-block rounded px-2 py-1 text-xs font-semibold ${getStatusBadge(quiz.status)}`}
+            className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold ${getStatusBadge(quiz.status)}`}
           >
             {quiz.status === "completed" ? "Last Score" : "Not Started"}
           </span>
@@ -229,7 +216,7 @@ function ReviewQuizCard({ quiz }: { quiz: CourseQuiz }) {
       <div className="mt-3 flex flex-wrap gap-2">
         <Link
           href={quizHref(quiz)}
-          className="inline-flex items-center justify-center rounded-md bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
+          className={`inline-flex items-center justify-center rounded-full bg-violet-400 ${primaryPillBase} transition-colors hover:bg-violet-500 focus-visible:outline-violet-500`}
         >
           {quiz.status === "completed" ? "Practice Again" : "Start Review"}
         </Link>
@@ -241,7 +228,7 @@ function ReviewQuizCard({ quiz }: { quiz: CourseQuiz }) {
 export function QuizList({ quizzes }: QuizListProps) {
   if (quizzes.length === 0) {
     return (
-      <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+      <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50 p-12 text-center">
         <p className="text-lg text-slate-600">No quizzes yet</p>
         <p className="mt-2 text-sm text-slate-500">
           Upload course materials on the{" "}
@@ -254,15 +241,15 @@ export function QuizList({ quizzes }: QuizListProps) {
     );
   }
 
-  const cold = quizzes.filter((q) => q.testType === "cold").sort(sortCold);
-  const hot = quizzes.filter((q) => q.testType === "hot").sort(sortHot);
-  const review = quizzes.filter((q) => q.testType === "review").sort(sortReview);
+  const cold = quizzes.filter((q) => q.testType === "cold").sort(sortQuizzesByDueDateAsc);
+  const hot = quizzes.filter((q) => q.testType === "hot").sort(sortQuizzesByDueDateAsc);
+  const review = quizzes.filter((q) => q.testType === "review").sort(sortQuizzesByDueDateAsc);
 
   return (
     <div className="space-y-12">
       {cold.length > 0 ? (
         <section>
-          <h2 className="mb-6 text-2xl font-bold text-slate-900">Cold</h2>
+          <h2 className="mb-6 text-2xl font-semibold tracking-tight text-slate-900">Cold</h2>
           <div className="space-y-4">
             {cold.map((quiz) => (
               <ColdHotQuizCard key={quiz.id} quiz={quiz} />
@@ -273,7 +260,7 @@ export function QuizList({ quizzes }: QuizListProps) {
 
       {hot.length > 0 ? (
         <section>
-          <h2 className="mb-6 text-2xl font-bold text-slate-900">Hot</h2>
+          <h2 className="mb-6 text-2xl font-semibold tracking-tight text-slate-900">Hot</h2>
           <div className="space-y-4">
             {hot.map((quiz) => (
               <ColdHotQuizCard key={quiz.id} quiz={quiz} />
@@ -284,7 +271,7 @@ export function QuizList({ quizzes }: QuizListProps) {
 
       {review.length > 0 ? (
         <section>
-          <h2 className="mb-6 text-2xl font-bold text-slate-900">Review</h2>
+          <h2 className="mb-6 text-2xl font-semibold tracking-tight text-slate-900">Review</h2>
           <div className="space-y-4">
             {review.map((quiz) => (
               <ReviewQuizCard key={quiz.id} quiz={quiz} />

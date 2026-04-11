@@ -1,4 +1,5 @@
-@import "tailwindcss";
+/* Base path = entire `src/` tree (see Tailwind v4 “Detecting classes” → source()) */
+@import "tailwindcss" source("..");
 
 :root {
   --background: #f8f9fa;
@@ -13,9 +14,8 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Do not set background/color here — RootLayout uses Tailwind on <body> (avoids fighting utilities). */
 body {
-  background: var(--background);
-  color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 

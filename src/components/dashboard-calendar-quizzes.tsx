@@ -110,7 +110,8 @@ export function DashboardCalendarAndQuizzes({
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Calendar & quizzes</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Import an <code className="rounded bg-slate-100 px-1">.ics</code> file to line up classes and deadlines with your quiz attempts.
+            Import an <code className="rounded bg-slate-100 px-1">.ics</code> file to line up classes and deadlines with your quiz attempts. In live
+            mode, a new file replaces your previously stored import.
           </p>
         </div>
         <IcsUploadButton

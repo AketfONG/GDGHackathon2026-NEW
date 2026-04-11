@@ -54,7 +54,7 @@ export function DeleteColdQuizButton({
         type="button"
         onClick={onDelete}
         disabled={busy}
-        className="inline-flex w-fit items-center justify-center rounded-md border border-red-300 bg-white px-3 py-1.5 text-sm font-semibold text-red-800 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex w-fit items-center justify-center rounded-full border-2 border-red-200 bg-white px-4 py-1.5 text-sm font-semibold text-red-800 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {busy ? "Deleting…" : "Delete quiz"}
       </button>

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import { IcsUploadButton } from "@/components/ics-upload-button";
 import type { IcsEventView } from "@/components/dashboard-calendar-quizzes";
 import { dateToLocalYmd } from "@/lib/calendar-dates";
+import { formatIcsUploadSuccessMessage } from "@/lib/ics-upload-message";
 
 /** Normalize task.date to YYYY-MM-DD (full date — not day-of-month only). */
 function normalizeTaskYmd(raw: string): string {
@@ -137,6 +138,7 @@ export function StudyCalendar({
       count?: number;
       message?: string;
       backendDisabled?: boolean;
+      replacedPrevious?: boolean;
     };
     if (!res.ok) {
       setUploadMsg({
@@ -145,7 +147,10 @@ export function StudyCalendar({
       });
       return;
     }
-    setUploadMsg({ kind: "ok", text: `Imported ${data.count ?? 0} events.` });
+    setUploadMsg({
+      kind: "ok",
+      text: formatIcsUploadSuccessMessage(data.count ?? 0, Boolean(data.replacedPrevious)),
+    });
     loadCalendar();
     router.refresh();
   }
@@ -213,23 +218,20 @@ export function StudyCalendar({
           const hasTask = Boolean(day && dateStr && taskYmdSet.has(dateStr));
           const hasIcs = Boolean(day && daysWithIcs.has(day));
 
-          // Distinct fills: emerald = quiz tasks, amber = .ics only, violet = both; selection uses a blue ring (keeps hue visible).
+          // Match `/schedule` month grid: blue = days with study/quiz tasks, emerald = .ics only, selected = blue border.
           let cellClass = "";
           if (day !== null) {
-            if (hasTask && hasIcs) {
+            if (isSelected) {
               cellClass =
-                "border-2 border-violet-800 bg-violet-500 text-white shadow-sm hover:bg-violet-600";
+                "border-2 border-blue-500 bg-blue-50 text-slate-900 shadow-sm hover:bg-blue-100 z-[1]";
             } else if (hasTask) {
               cellClass =
-                "border-2 border-emerald-800 bg-emerald-500 text-white shadow-sm hover:bg-emerald-600";
+                "border-2 border-blue-300 bg-blue-100 text-slate-900 shadow-sm hover:border-blue-400";
             } else if (hasIcs) {
               cellClass =
-                "border-2 border-amber-600 bg-amber-300 text-amber-950 shadow-sm hover:bg-amber-400";
+                "border-2 border-emerald-300 bg-emerald-50 text-slate-900 shadow-sm hover:border-emerald-400";
             } else {
-              cellClass = "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50";
-            }
-            if (isSelected) {
-              cellClass += " ring-4 ring-blue-600 ring-offset-2 ring-offset-white z-[1]";
+              cellClass = "border border-slate-200 bg-white text-slate-800 hover:border-slate-300";
             }
           }
 
@@ -249,23 +251,23 @@ export function StudyCalendar({
       <div className={`space-y-1.5 ${compact ? "mt-2 text-[11px]" : "mt-4 text-xs"}`}>
         <div className="flex items-center gap-2">
           <div
-            className={`shrink-0 rounded border-2 border-emerald-800 bg-emerald-500 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
+            className={`shrink-0 rounded border-2 border-blue-300 bg-blue-100 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
           />
-          <span className="text-slate-700">Quiz / study task</span>
+          <span className="text-slate-700">Day with quiz / study tasks</span>
         </div>
         <div className="flex items-center gap-2">
           <div
-            className={`shrink-0 rounded border-2 border-amber-600 bg-amber-300 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
+            className={`shrink-0 rounded border-2 border-emerald-300 bg-emerald-50 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
           />
-          <span className="text-slate-700">Imported .ics (class times)</span>
+          <span className="text-slate-700">Imported .ics only</span>
         </div>
         <div className="flex items-center gap-2">
           <div
-            className={`shrink-0 rounded border-2 border-violet-800 bg-violet-500 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
+            className={`shrink-0 rounded border-2 border-blue-500 bg-blue-50 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
           />
-          <span className="text-slate-700">Task + .ics same day</span>
+          <span className="text-slate-700">Selected day</span>
         </div>
-        <p className="text-slate-500">Blue ring = selected day (details below →).</p>
+        <p className="text-slate-500">Same colors as the full schedule calendar.</p>
       </div>
     </div>
   );

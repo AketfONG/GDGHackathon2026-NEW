@@ -10,6 +10,10 @@ import { useUserSettings } from "@/hooks/use-user-settings";
 import { useMemo, useState } from "react";
 import type { IcsEventView } from "@/components/dashboard-calendar-quizzes";
 import { dateToLocalYmd } from "@/lib/calendar-dates";
+import {
+  getScheduleTaskTypeColor,
+  getScheduleTaskTypeLabel,
+} from "@/lib/schedule-task-palette";
 
 const TIME_LOCALE = "en-US";
 
@@ -20,32 +24,6 @@ function formatIcsSlot(startIso: string, endIso: string) {
   const t0 = s.toLocaleTimeString(TIME_LOCALE, { hour: "numeric", minute: "2-digit" });
   const t1 = e.toLocaleTimeString(TIME_LOCALE, { hour: "numeric", minute: "2-digit" });
   return `${datePart} · ${t0} – ${t1}`;
-}
-
-function taskTypeStyles(type: ScheduledStudyTask["type"]) {
-  switch (type) {
-    case "hot_quiz":
-      return "bg-red-100 text-red-800";
-    case "review_quiz":
-      return "bg-green-100 text-green-800";
-    case "cold_quiz":
-      return "bg-blue-100 text-blue-800";
-    default:
-      return "bg-slate-100 text-slate-800";
-  }
-}
-
-function taskTypeLabel(type: ScheduledStudyTask["type"]) {
-  switch (type) {
-    case "hot_quiz":
-      return "Hot quiz";
-    case "review_quiz":
-      return "Review";
-    case "cold_quiz":
-      return "Cold quiz";
-    default:
-      return "Study";
-  }
 }
 
 type ReviewFocusItem = { quizId: string; course: string; concept: string; dueDate: string };
@@ -116,8 +94,8 @@ export function HomeDashboard({
                 </p>
               ) : (
                 <p className="mt-3 shrink-0 text-center text-xs leading-relaxed text-slate-500">
-                  Emerald = quiz task, amber = .ics class, violet = both. Click a day — schedule appears in the panel
-                  below (right column).{" "}
+                  Blue = day with tasks, emerald = .ics only (same legend as full schedule). Click a day — details appear in
+                  the panel below.{" "}
                   <Link href="/schedule" className="font-semibold text-blue-600 hover:text-blue-700">
                     Full schedule →
                   </Link>
@@ -198,7 +176,8 @@ export function HomeDashboard({
                 <div className="mt-1.5 min-h-0 flex-1 overflow-y-auto overscroll-y-contain rounded-md border border-slate-100 bg-slate-50/40 px-1 pt-1 pb-4 [scrollbar-gutter:stable]">
                   {!selectedDate ? (
                     <p className="py-2 text-sm leading-relaxed text-slate-500">
-                      Tap a day on the calendar (emerald / amber / violet) to list tasks and class times here.
+                      Tap a day on the calendar (blue / emerald, matching the full schedule) to list tasks and class times
+                      here.
                     </p>
                   ) : (
                     (() => {
@@ -217,46 +196,45 @@ export function HomeDashboard({
                         <div className="space-y-4 py-1">
                           {hasTasks ? (
                             <div>
-                              <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-emerald-800">
+                              <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-slate-800">
                                 Quizzes & study
                               </h3>
                               <ul className="space-y-2">
-                                {dayTasks.map((task) => (
-                                  <li
-                                    key={`${task.date}-${task.type}-${task.id}`}
-                                    className="rounded-md border border-emerald-200 bg-emerald-50/90 p-2.5 text-sm"
-                                  >
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                      <span
-                                        className={`rounded px-2 py-0.5 text-xs font-semibold ${taskTypeStyles(task.type)}`}
-                                      >
-                                        {taskTypeLabel(task.type)}
-                                      </span>
-                                      <span className="font-medium text-slate-900">{task.topic}</span>
-                                    </div>
-                                    <p className="mt-1 text-slate-800">{task.title}</p>
-                                    <p className="mt-0.5 text-xs text-slate-600">{task.time}</p>
-                                    <Link
-                                      href={taskQuizHref(task)}
-                                      className="mt-1.5 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700"
+                                {dayTasks.map((task) => {
+                                  const colors = getScheduleTaskTypeColor(task.type);
+                                  return (
+                                    <li
+                                      key={`${task.date}-${task.type}-${task.id}`}
+                                      className={`rounded-lg border-2 border-slate-300 p-2.5 text-sm transition-shadow hover:shadow-md ${colors.bg}`}
                                     >
-                                      Open quiz →
-                                    </Link>
-                                  </li>
-                                ))}
+                                      <p className={`text-xs font-semibold ${colors.text}`}>
+                                        {getScheduleTaskTypeLabel(task.type)}
+                                      </p>
+                                      <p className="mt-1 font-medium text-slate-900">{task.topic}</p>
+                                      <p className="mt-0.5 text-slate-800">{task.title}</p>
+                                      <p className="mt-1 text-xs text-slate-700">{task.time}</p>
+                                      <Link
+                                        href={taskQuizHref(task)}
+                                        className="mt-1.5 inline-block text-sm font-semibold text-blue-600 hover:text-blue-700"
+                                      >
+                                        Open quiz →
+                                      </Link>
+                                    </li>
+                                  );
+                                })}
                               </ul>
                             </div>
                           ) : null}
                           {hasIcs ? (
                             <div>
-                              <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-amber-800">
-                                Calendar (.ics)
+                              <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wide text-emerald-900">
+                                Imported calendar
                               </h3>
                               <ul className="space-y-2">
                                 {icsOnSelectedDate.map((ev) => (
                                   <li
                                     key={`${ev.uid}-${ev.start}`}
-                                    className="rounded-md border border-amber-300 bg-amber-50/95 p-2.5 text-sm"
+                                    className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-2.5 text-sm"
                                   >
                                     <p className="font-medium text-slate-900">{ev.title}</p>
                                     <p className="mt-1 text-xs text-slate-700">{formatIcsSlot(ev.start, ev.end)}</p>

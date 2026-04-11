@@ -77,6 +77,10 @@ export async function POST(req: NextRequest) {
   }
 
   await connectToDatabase();
+  // One stored calendar per user — new upload always replaces the previous file/events (live data).
+  const replacedPrevious = Boolean(
+    await CalendarImportModel.exists({ userId: auth.user._id }),
+  );
   await CalendarImportModel.findOneAndUpdate(
     { userId: auth.user._id },
     {
@@ -98,5 +102,6 @@ export async function POST(req: NextRequest) {
     ok: true,
     count: events.length,
     fileName: name,
+    replacedPrevious,
   });
 }

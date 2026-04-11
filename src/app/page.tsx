@@ -4,7 +4,7 @@ import { getMergedScheduleTasksForViewer } from "@/lib/dynamic-schedule-loader";
 import { loadUploadedColdQuizzes } from "@/lib/uploaded-cold-quizzes-loader";
 import type { ColdTestTodo } from "@/components/quiz-todo-list";
 import { getDemoModeFromCookieStore, isPresetDemoContentEnabled } from "@/lib/app-demo-mode";
-import { getUpcomingReviewQuizConcepts } from "@/lib/scheduled-quizzes";
+import { getScheduledCourseQuizzes, getUpcomingReviewQuizConcepts } from "@/lib/scheduled-quizzes";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +19,7 @@ export default async function Home() {
     getMergedScheduleTasksForViewer(),
   ]);
 
-  const coldTests: ColdTestTodo[] = bundles.map(({ courseQuiz, topicLabel, difficulty }) => ({
+  const uploadedColdTests: ColdTestTodo[] = bundles.map(({ courseQuiz, topicLabel, difficulty }) => ({
     id: courseQuiz.id,
     title: courseQuiz.title,
     topic: topicLabel,
@@ -28,10 +28,26 @@ export default async function Home() {
     scorePercent: courseQuiz.score,
   }));
 
+  const presetColdTests: ColdTestTodo[] = presets
+    ? getScheduledCourseQuizzes()
+        .filter((q) => q.testType === "cold")
+        .map((q) => ({
+          id: q.id,
+          title: q.title,
+          topic: q.subtopic ? `${q.course} · ${q.subtopic}` : q.course,
+          difficulty: "MIXED",
+          status: q.status,
+          scorePercent: q.score,
+        }))
+    : [];
+
+  const coldTests = [...presetColdTests, ...uploadedColdTests];
+  const coldTestsLoadFailed = dbOffline && coldTests.length === 0;
+
   return (
     <HomeDashboard
       coldTests={coldTests}
-      coldTestsLoadFailed={dbOffline}
+      coldTestsLoadFailed={coldTestsLoadFailed}
       scheduleTasks={scheduleTasks}
       reviewFocusConcepts={reviewFocusConcepts}
     />

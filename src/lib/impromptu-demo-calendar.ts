@@ -45,6 +45,7 @@ function eventKey(e: CalendarEventJson): string {
 /**
  * In demo mode, user-uploaded events are merged with the Impromptu demo timetable (deduped).
  * In live mode, pass `demoMode: false` and only the user import is returned.
+ * (POST /api/calendar/ics always replaces the stored user calendar in the database; demo merge is read-time only.)
  */
 export function mergeCalendarImportWithDemo(
   userImport: CalendarImportJson | null,

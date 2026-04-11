@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { formatIcsUploadSuccessMessage } from "@/lib/ics-upload-message";
 
 export function useCalendarIcsUpload() {
   const router = useRouter();
@@ -24,6 +25,7 @@ export function useCalendarIcsUpload() {
         count?: number;
         backendDisabled?: boolean;
         message?: string;
+        replacedPrevious?: boolean;
       };
       if (!res.ok) {
         const err =
@@ -33,7 +35,10 @@ export function useCalendarIcsUpload() {
         setMessage({ kind: "err", text: err });
         return;
       }
-      setMessage({ kind: "ok", text: `Imported ${data.count ?? 0} events from your calendar.` });
+      setMessage({
+        kind: "ok",
+        text: formatIcsUploadSuccessMessage(data.count ?? 0, Boolean(data.replacedPrevious)),
+      });
       router.refresh();
     });
   }
