@@ -48,38 +48,81 @@ export function NavDemoLiveSwitch() {
   return (
     <>
       <div
-        role="group"
-        aria-label="App mode: demo or live"
-        aria-busy={busy}
-        className="nav-demo-live-group"
+        className="nav-demo-live-shell"
+        title="Switch between demo sample content and live data"
       >
-        <button
-          type="button"
-          className="nav-demo-live-btn nav-demo-live-btn--demo"
-          data-active={isDemo}
-          disabled={busy || isDemo}
-          onClick={() => setAppMode("demo")}
-          title="Demo: presets, demo calendar overlay, placeholder content"
+        <span id="nav-app-mode-label" className="nav-demo-live-shell__label">
+          Mode
+        </span>
+        <div
+          role="group"
+          aria-labelledby="nav-app-mode-label"
+          aria-label="App mode: demo or live"
+          aria-busy={busy}
+          className="nav-demo-live-group"
         >
-          Demo
-        </button>
-        <button
-          type="button"
-          className="nav-demo-live-btn nav-demo-live-btn--live"
-          data-active={!isDemo}
-          disabled={busy || !isDemo}
-          onClick={() => setAppMode("live")}
-          title="Live: your data only"
-        >
-          Live
-        </button>
+          <button
+            type="button"
+            className="nav-demo-live-btn nav-demo-live-btn--demo"
+            data-active={isDemo}
+            disabled={busy || isDemo}
+            onClick={() => setAppMode("demo")}
+            title="Demo: presets, demo calendar overlay, placeholder content"
+          >
+            Demo
+          </button>
+          <button
+            type="button"
+            className="nav-demo-live-btn nav-demo-live-btn--live"
+            data-active={!isDemo}
+            disabled={busy || !isDemo}
+            onClick={() => setAppMode("live")}
+            title="Live: your data only"
+          >
+            Live
+          </button>
+        </div>
       </div>
       <style>{`
+        .nav-demo-live-shell {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          flex-shrink: 0;
+          padding: 6px 8px 6px 12px;
+          border-radius: 9999px;
+          border: 1px solid #cbd5e1;
+          background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+          box-shadow:
+            0 1px 2px rgba(15, 23, 42, 0.06),
+            inset 0 1px 0 rgba(255, 255, 255, 0.85),
+            0 0 0 1px rgba(226, 232, 240, 0.95);
+        }
+        .nav-demo-live-shell__label {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: #64748b;
+          user-select: none;
+        }
+        @media (max-width: 639px) {
+          .nav-demo-live-shell__label {
+            display: none;
+          }
+          .nav-demo-live-shell {
+            padding-left: 8px;
+          }
+        }
         .nav-demo-live-group {
           display: flex;
           align-items: center;
           gap: 8px;
           flex-shrink: 0;
+          padding: 4px 6px;
+          border-radius: 9999px;
+          border: 1px solid #e2e8f0;
+          background: rgba(255, 255, 255, 0.65);
         }
         .nav-demo-live-group[aria-busy="true"] {
           opacity: 0.65;

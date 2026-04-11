@@ -33,6 +33,9 @@ type Props = {
 const UPCOMING_DAYS = 21;
 const PAST_QUIZ_DAYS = 30;
 
+/** Fixed locale so SSR and browser match (avoids hydration mismatches from `undefined` locale). */
+const DISPLAY_LOCALE = "en-US";
+
 function dayKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -130,7 +133,10 @@ export function DashboardCalendarAndQuizzes({
       {initialImport ? (
         <p className="mt-2 text-xs text-slate-500">
           Current file: <span className="font-medium text-slate-700">{initialImport.fileName}</span> · imported{" "}
-          {new Date(initialImport.importedAt).toLocaleString()}
+          {new Date(initialImport.importedAt).toLocaleString(DISPLAY_LOCALE, {
+            dateStyle: "medium",
+            timeStyle: "short",
+          })}
         </p>
       ) : (
         <p className="mt-2 text-sm text-slate-600">No calendar uploaded yet — use the green button above.</p>
@@ -215,7 +221,11 @@ export function DashboardCalendarAndQuizzes({
                   >
                     <span className="font-medium text-slate-800">{q.title}</span>
                     <span className="text-xs text-slate-600">
-                      {new Date(q.submittedAt).toLocaleString()} · {q.scorePct}%
+                      {new Date(q.submittedAt).toLocaleString(DISPLAY_LOCALE, {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}{" "}
+                      · {q.scorePct}%
                     </span>
                   </li>
                 ))
@@ -230,16 +240,31 @@ export function DashboardCalendarAndQuizzes({
 
 function fmtRange(start: Date, end: Date) {
   const sameDay = dayKey(start) === dayKey(end);
-  const t0 = start.toLocaleString(undefined, {
+  const sameDayStartOpts: Intl.DateTimeFormatOptions = {
     weekday: "short",
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  });
+    hour12: true,
+  };
+  const t0 = start.toLocaleString(DISPLAY_LOCALE, sameDayStartOpts);
   if (sameDay) {
-    const t1 = end.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    const t1 = end.toLocaleTimeString(DISPLAY_LOCALE, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
     return `${t0} – ${t1}`;
   }
-  return `${start.toLocaleString()} → ${end.toLocaleString()}`;
+  const fullOpts: Intl.DateTimeFormatOptions = {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  };
+  return `${start.toLocaleString(DISPLAY_LOCALE, fullOpts)} → ${end.toLocaleString(DISPLAY_LOCALE, fullOpts)}`;
 }

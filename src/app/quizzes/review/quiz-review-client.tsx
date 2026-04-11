@@ -108,10 +108,10 @@ export function QuizReviewPageClient({ fallbackDemoQuizId }: Props) {
         </div>
         <div>
           <Link
-            href="/dashboard"
+            href="/"
             className="inline-block rounded-md bg-slate-900 px-4 py-2 text-white hover:bg-slate-800"
           >
-            Back to Dashboard
+            Back to home
           </Link>
         </div>
       </main>

@@ -9,7 +9,6 @@ import { syncSessionCookie } from "@/lib/auth/session-sync";
 import { NavDemoLiveSwitch } from "@/components/nav-demo-live-switch";
 
 const links = [
-  { href: "/dashboard", label: "Dashboard" },
   { href: "/upload", label: "Upload Materials" },
   { href: "/quizzes", label: "Quizzes" },
   { href: "/schedule", label: "Schedule" },

@@ -32,6 +32,8 @@ interface StudyCalendarProps {
   selectedDate?: string | null;
   compact?: boolean;
   weekStartsOn?: 0 | 1;
+  /** Called when .ics data is loaded/refreshed so the parent can show per-day events in a detail panel. */
+  onIcsEventsChange?: (events: IcsEventView[]) => void;
 }
 
 export function StudyCalendar({
@@ -40,6 +42,7 @@ export function StudyCalendar({
   selectedDate,
   compact = false,
   weekStartsOn = 0,
+  onIcsEventsChange,
 }: StudyCalendarProps) {
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -79,6 +82,10 @@ export function StudyCalendar({
     window.addEventListener("study-agent-app-mode", onMode);
     return () => window.removeEventListener("study-agent-app-mode", onMode);
   }, [loadCalendar]);
+
+  useEffect(() => {
+    onIcsEventsChange?.(icsEvents);
+  }, [icsEvents, onIcsEventsChange]);
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   const jsFirstDow = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
@@ -170,10 +177,10 @@ export function StudyCalendar({
         ) : null}
         {loadError ? <p className="text-xs text-amber-800">{loadError}</p> : null}
         <Link
-          href="/dashboard"
+          href="/schedule"
           className="block text-center text-sm font-medium text-slate-700 underline hover:text-slate-900 sm:text-left"
         >
-          Full calendar & quizzes on Dashboard →
+          Full calendar & schedule →
         </Link>
       </div>
 
@@ -197,7 +204,7 @@ export function StudyCalendar({
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-1.5">
         {days.map((day, index) => {
           const dateStr = day
             ? `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
@@ -206,18 +213,25 @@ export function StudyCalendar({
           const hasTask = Boolean(day && dateStr && taskYmdSet.has(dateStr));
           const hasIcs = Boolean(day && daysWithIcs.has(day));
 
-          let cellClass =
-            day === null
-              ? ""
-              : isSelected
-                ? "bg-blue-700 text-white ring-2 ring-blue-400"
-                : hasTask && hasIcs
-                  ? "bg-indigo-600 text-white ring-2 ring-indigo-300 hover:bg-indigo-700"
-                  : hasTask
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                    : hasIcs
-                      ? "bg-sky-600 text-white ring-2 ring-sky-300 hover:bg-sky-700"
-                      : "bg-slate-100 text-slate-900 hover:bg-slate-200";
+          // Distinct fills: emerald = quiz tasks, amber = .ics only, violet = both; selection uses a blue ring (keeps hue visible).
+          let cellClass = "";
+          if (day !== null) {
+            if (hasTask && hasIcs) {
+              cellClass =
+                "border-2 border-violet-800 bg-violet-500 text-white shadow-sm hover:bg-violet-600";
+            } else if (hasTask) {
+              cellClass =
+                "border-2 border-emerald-800 bg-emerald-500 text-white shadow-sm hover:bg-emerald-600";
+            } else if (hasIcs) {
+              cellClass =
+                "border-2 border-amber-600 bg-amber-300 text-amber-950 shadow-sm hover:bg-amber-400";
+            } else {
+              cellClass = "border border-slate-200 bg-white text-slate-800 hover:bg-slate-50";
+            }
+            if (isSelected) {
+              cellClass += " ring-4 ring-blue-600 ring-offset-2 ring-offset-white z-[1]";
+            }
+          }
 
           return (
             <button
@@ -232,19 +246,26 @@ export function StudyCalendar({
         })}
       </div>
 
-      <div className={`space-y-2 ${compact ? "mt-2 text-xs" : "mt-4 text-sm"}`}>
+      <div className={`space-y-1.5 ${compact ? "mt-2 text-[11px]" : "mt-4 text-xs"}`}>
         <div className="flex items-center gap-2">
-          <div className={`rounded bg-blue-600 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`} />
-          <span className="text-slate-600">Study / quiz task</span>
+          <div
+            className={`shrink-0 rounded border-2 border-emerald-800 bg-emerald-500 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
+          />
+          <span className="text-slate-700">Quiz / study task</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className={`rounded bg-sky-600 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`} />
-          <span className="text-slate-600">Imported .ics event</span>
+          <div
+            className={`shrink-0 rounded border-2 border-amber-600 bg-amber-300 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
+          />
+          <span className="text-slate-700">Imported .ics (class times)</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className={`rounded bg-indigo-600 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`} />
-          <span className="text-slate-600">Both task and .ics</span>
+          <div
+            className={`shrink-0 rounded border-2 border-violet-800 bg-violet-500 ${compact ? "h-2.5 w-2.5" : "h-3 w-3"}`}
+          />
+          <span className="text-slate-700">Task + .ics same day</span>
         </div>
+        <p className="text-slate-500">Blue ring = selected day (details below →).</p>
       </div>
     </div>
   );
