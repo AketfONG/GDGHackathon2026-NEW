@@ -5,13 +5,9 @@ import { TopNav } from "@/components/top-nav";
 import { QuizTodoList, type ColdTestTodo } from "@/components/quiz-todo-list";
 import { StudyCalendar } from "@/components/study-calendar";
 import { GoogleAuthButton } from "@/components/google-auth-button";
-import {
-  getUpcomingReviewQuizConcepts,
-  taskQuizHref,
-  type ScheduledStudyTask,
-} from "@/lib/scheduled-quizzes";
+import { taskQuizHref, type ScheduledStudyTask } from "@/lib/scheduled-quizzes";
 import { useUserSettings } from "@/hooks/use-user-settings";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 function taskTypeStyles(type: ScheduledStudyTask["type"]) {
   switch (type) {
@@ -39,22 +35,29 @@ function taskTypeLabel(type: ScheduledStudyTask["type"]) {
   }
 }
 
+type ReviewFocusItem = { quizId: string; course: string; concept: string; dueDate: string };
+
 type HomeDashboardProps = {
   coldTests: ColdTestTodo[];
   coldTestsLoadFailed: boolean;
   scheduleTasks: ScheduledStudyTask[];
+  reviewFocusConcepts: ReviewFocusItem[];
 };
 
-export function HomeDashboard({ coldTests, coldTestsLoadFailed, scheduleTasks }: HomeDashboardProps) {
+export function HomeDashboard({
+  coldTests,
+  coldTestsLoadFailed,
+  scheduleTasks,
+  reviewFocusConcepts,
+}: HomeDashboardProps) {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [settings] = useUserSettings();
-  const reviewFocusConcepts = useMemo(() => getUpcomingReviewQuizConcepts(), []);
 
   return (
     <div className="min-h-screen bg-slate-50">
       <TopNav />
       <main className="mx-auto w-full max-w-7xl px-4 py-8">
-        <section className="mb-8">
+        <section className="mb-8 space-y-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-4">
             <h1 className="text-3xl font-semibold text-slate-900">Study Dashboard</h1>
             <p className="max-w-2xl text-base text-slate-600 sm:min-w-0 sm:flex-1">

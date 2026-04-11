@@ -1,4 +1,7 @@
+import { cookies } from "next/headers";
 import { ensureDemoUser } from "@/lib/demo-user";
+import { getDemoModeFromCookieStore, isPresetDemoContentEnabled } from "@/lib/app-demo-mode";
+import { mergeCalendarImportWithDemo, type CalendarImportJson } from "@/lib/impromptu-demo-calendar";
 import { TopNav } from "@/components/top-nav";
 import { DbOfflineNotice } from "@/components/db-offline-notice";
 import { DashboardCalendarImportBar } from "@/components/dashboard-calendar-import-bar";
@@ -16,6 +19,9 @@ import { Types } from "mongoose";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const cookieStore = await cookies();
+  const appMode = getDemoModeFromCookieStore(cookieStore);
+
   let dbOffline = isBackendDisabled();
   let latestAssessment: Awaited<ReturnType<typeof DriftAssessmentModel.findOne>> = null;
   let attempts: Awaited<ReturnType<typeof QuizAttemptModel.find>> = [];
@@ -71,7 +77,7 @@ export default async function DashboardPage() {
     };
   });
 
-  const calendarImportProps = calendarImport
+  const userImportJson: CalendarImportJson | null = calendarImport
     ? {
         fileName: calendarImport.fileName,
         importedAt: (
@@ -90,6 +96,8 @@ export default async function DashboardPage() {
         ),
       }
     : null;
+
+  const calendarImportProps = mergeCalendarImportWithDemo(userImportJson, isPresetDemoContentEnabled(appMode));
 
   const calendarStorageReady = !dbOffline;
 

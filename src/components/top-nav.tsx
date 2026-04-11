@@ -6,8 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/client";
 import { syncSessionCookie } from "@/lib/auth/session-sync";
+import { NavDemoLiveSwitch } from "@/components/nav-demo-live-switch";
 
 const links = [
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/upload", label: "Upload Materials" },
   { href: "/quizzes", label: "Quizzes" },
   { href: "/schedule", label: "Schedule" },
@@ -177,6 +179,7 @@ export function TopNav() {
                 {item.label}
               </Link>
             ))}
+            <NavDemoLiveSwitch />
             {isLoggedIn ? (
               <button
                 type="button"
@@ -245,6 +248,9 @@ export function TopNav() {
               }
             }}
           >
+            <div style={{ display: "flex", justifyContent: "center", paddingBottom: 8 }}>
+              <NavDemoLiveSwitch />
+            </div>
             {links.map((item) => (
               <Link
                 key={item.href}
