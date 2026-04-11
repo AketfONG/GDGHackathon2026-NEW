@@ -67,6 +67,7 @@ export async function loadUploadedColdQuizzes(): Promise<{
       const attempts = await QuizAttemptModel.find({
         userId: user._id,
         quizId: { $in: quizIds },
+        mode: "cold",
       })
         .sort({ submittedAt: -1 })
         .lean();

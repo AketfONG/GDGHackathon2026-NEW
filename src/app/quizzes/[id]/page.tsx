@@ -15,8 +15,16 @@ import { isMongoObjectIdString } from "@/lib/mongo-object-id";
 
 export const dynamic = "force-dynamic";
 
-export default async function QuizTakePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function QuizTakePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { id } = await params;
+  const { mode } = await searchParams;
+  const isHotFollowup = mode === "hot-followup";
 
   const cookieStore = await cookies();
   const demo = isPresetDemoContentEnabled(getDemoModeFromCookieStore(cookieStore));
@@ -42,7 +50,7 @@ export default async function QuizTakePage({ params }: { params: Promise<{ id: s
               Default practice quiz — results are shown on this device only (not saved to your account).
             </p>
             <div className="mt-6">
-              <QuizAttemptForm quiz={defaultQuiz} />
+              <QuizAttemptForm quiz={defaultQuiz} isHotFollowup={false} />
             </div>
           </div>
         </main>
@@ -119,7 +127,9 @@ export default async function QuizTakePage({ params }: { params: Promise<{ id: s
 
   const quiz: UiQuiz = {
     id: String(row._id),
-    title: String(row.title ?? "Quiz"),
+    title: isHotFollowup
+      ? String(row.title ?? "Quiz").replace("Cold Test", "Hot Test").replace("cold test", "hot test")
+      : String(row.title ?? "Quiz"),
     topic: String(row.topic ?? "General"),
     difficulty: String(row.difficulty ?? "mixed"),
     questions,
@@ -153,7 +163,7 @@ export default async function QuizTakePage({ params }: { params: Promise<{ id: s
             {quiz.topic} · {quiz.difficulty}
           </p>
           <div className="mt-6">
-            <QuizAttemptForm quiz={quiz} />
+            <QuizAttemptForm quiz={quiz} isHotFollowup={isHotFollowup} />
           </div>
         </div>
       </main>

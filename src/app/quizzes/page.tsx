@@ -6,6 +6,7 @@ import { isBackendDisabled } from "@/lib/backend-toggle";
 import { getScheduledCourseQuizzes } from "@/lib/scheduled-quizzes";
 import { loadUploadedColdQuizzes } from "@/lib/uploaded-cold-quizzes-loader";
 import { getDemoModeFromCookieStore, isPresetDemoContentEnabled } from "@/lib/app-demo-mode";
+import { loadDynamicScheduleTasks, loadHotFollowupAttempts } from "@/lib/dynamic-schedule-loader";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,38 @@ export default async function QuizzesPage() {
       const uploaded = bundles.map((b) => b.courseQuiz);
       const scheduled = presets ? getScheduledCourseQuizzes() : [];
       coldQuizzes = [...scheduled, ...uploaded];
+      const scheduled = getScheduledCourseQuizzes();
+      const dynamicTasks = await loadDynamicScheduleTasks();
+      const hotAttempts = await loadHotFollowupAttempts();
+      
+      // Convert dynamic tasks to CourseQuiz format for hot follow-ups
+      const dynamicHot: CourseQuiz[] = dynamicTasks
+        .filter((t) => t.type === "hot_quiz")
+        .map((t) => {
+          const attempt = hotAttempts.get(t.id);
+          const correctAnswers = attempt
+            ? attempt.questionAttempts.filter((x) => x.isCorrect).length
+            : 0;
+          const graded = attempt ? attempt.questionAttempts.length || 1 : 0;
+          
+          return {
+            id: t.id,
+            course: t.topic?.split(" · ")[0] || "",
+            subtopic: t.topic?.split(" · ").slice(1).join(" · ") || "",
+            testType: "hot" as const,
+            title: t.title,
+            status: attempt ? ("completed" as const) : ("not-started" as const),
+            dueDate: t.date,
+            externalHref: t.externalQuizHref,
+            ...(attempt && {
+              score: Math.round(attempt.score * 100),
+              totalQuestions: graded,
+              correctAnswers,
+            }),
+          };
+        });
+      
+      coldQuizzes = [...scheduled, ...uploaded, ...dynamicHot];
     }
   }
 

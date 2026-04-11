@@ -38,6 +38,7 @@ export async function POST(
   await connectToDatabase();
 
   const { id } = await ctx.params;
+  const mode = req.nextUrl.searchParams.get("mode");
   if (!Types.ObjectId.isValid(id)) {
     return NextResponse.json({ error: "Invalid quiz id" }, { status: 400 });
   }
@@ -109,6 +110,7 @@ export async function POST(
     score,
     durationSec: parsed.data.durationSec,
     questionAttempts,
+    mode: mode === "hot-followup" ? "hot-followup" : "cold",
   });
 
   const attemptId = attempt._id;

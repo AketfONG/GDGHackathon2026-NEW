@@ -18,6 +18,7 @@ const quizAttemptSchema = new Schema(
     durationSec: { type: Number, required: true },
     submittedAt: { type: Date, default: () => new Date() },
     questionAttempts: { type: [questionAttemptSchema], default: [] },
+    mode: { type: String, enum: ["cold", "hot-followup"], default: "cold" },
   },
   { timestamps: true },
 );
