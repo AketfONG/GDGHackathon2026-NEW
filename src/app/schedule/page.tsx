@@ -297,12 +297,12 @@ export default function SchedulePage() {
                 ))}
               </div>
 
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-2">
+              {/* Calendar Grid — min-w-0 / overflow; vertical chips + pb so two tasks never sit on the bottom border */}
+              <div className="grid min-w-0 grid-cols-7 gap-2">
                 {calendarDays.map((day, idx) => {
                   if (day === null) {
                     return (
-                      <div key={`empty-${idx}`} className="h-24 rounded-lg bg-slate-50" />
+                      <div key={`empty-${idx}`} className="h-24 min-w-0 rounded-lg bg-slate-50" />
                     );
                   }
 
@@ -326,27 +326,29 @@ export default function SchedulePage() {
                   return (
                     <button
                       key={day}
+                      type="button"
                       onClick={() => {
                         setSelectedDate(isSelected ? null : dateString);
                         setSelectedTask(null);
                       }}
-                      className={`h-24 rounded-lg border-2 p-2 text-left transition-all ${cellBorder}`}
+                      className={`flex h-24 min-w-0 flex-col items-stretch overflow-hidden rounded-lg border-2 px-1.5 pb-2 pt-1.5 text-left transition-all ${cellBorder}`}
                     >
-                      <p className="font-semibold text-slate-900">{day}</p>
+                      <p className="shrink-0 font-semibold leading-none text-slate-900">{day}</p>
                       {(hasTasks || hasIcs) && (
-                        <div className="mt-1 space-y-1">
+                        <div className="mt-1 flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden">
                           {hasTasks ? (
                             <>
-                              <p className="text-xs font-medium text-blue-700">
+                              <p className="shrink-0 truncate text-[11px] font-medium leading-tight text-blue-700">
                                 {taskCount} task{taskCount !== 1 ? "s" : ""}
                               </p>
-                              <div className="flex flex-wrap gap-1">
+                              <div className="flex min-h-0 min-w-0 shrink flex-col gap-0.5">
                                 {dayTasks!.slice(0, 2).map((task) => {
                                   const colors = getTypeColor(task.type);
                                   return (
                                     <span
                                       key={task.id}
-                                      className={`inline-block rounded px-1.5 py-0.5 text-xs font-medium ${colors.bg} ${colors.text}`}
+                                      title={getTypeLabel(task.type)}
+                                      className={`block w-full min-w-0 truncate rounded px-1 py-0.5 text-center text-[10px] font-medium leading-tight ${colors.bg} ${colors.text}`}
                                     >
                                       {getTypeLabel(task.type).split(" ")[0]}
                                     </span>
@@ -356,7 +358,7 @@ export default function SchedulePage() {
                             </>
                           ) : null}
                           {hasIcs ? (
-                            <p className="text-xs font-medium text-emerald-800">
+                            <p className="shrink-0 truncate text-[11px] font-medium leading-tight text-emerald-800">
                               {icsForDay.length} cal event{icsForDay.length !== 1 ? "s" : ""}
                             </p>
                           ) : null}
