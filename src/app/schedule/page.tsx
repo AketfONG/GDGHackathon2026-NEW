@@ -32,7 +32,10 @@ interface StudyTask {
 }
 
 function enrichTasksWithReviewConcepts(tasks: ScheduledStudyTask[]): StudyTask[] {
-  const quizById = new Map(getScheduledCourseQuizzes().map((q) => [q.id, q]));
+  const needsPresetCatalog = tasks.some((t) => t.id.startsWith("scheduled-"));
+  const quizById = new Map(
+    (needsPresetCatalog ? getScheduledCourseQuizzes() : []).map((q) => [q.id, q]),
+  );
   return tasks.map((t) => {
     const cq = quizById.get(t.id);
     if (t.type === "review_quiz" && cq?.testType === "review") {
@@ -115,9 +118,7 @@ export default function SchedulePage() {
   const [icsImport, setIcsImport] = useState<CalendarImportClient | null>(null);
   const [icsMsg, setIcsMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
-  const [studyPlan, setStudyPlan] = useState<StudyTask[]>(() =>
-    enrichTasksWithReviewConcepts(getScheduledStudyTasks()),
-  );
+  const [studyPlan, setStudyPlan] = useState<StudyTask[]>([]);
 
   useEffect(() => {
     let cancelled = false;

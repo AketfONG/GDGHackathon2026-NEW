@@ -1,6 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { dateToLocalYmd } from "@/lib/calendar-dates";
+
+/** Normalize task.date to YYYY-MM-DD for comparison with calendar cells (full date, not day-of-month only). */
+function normalizeTaskYmd(raw: string): string {
+  const s = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? s : dateToLocalYmd(d);
+}
 
 interface StudyTask {
   id: string;
@@ -38,12 +47,9 @@ export function StudyCalendar({
 
   const monthName = currentDate.toLocaleString("default", { month: "long", year: "numeric" });
 
-  // Get task dates for styling
-  const taskDates = new Set(
-    tasks.map((task) => {
-      const date = new Date(task.date);
-      return date.getDate();
-    })
+  const taskYmdSet = useMemo(
+    () => new Set(tasks.map((task) => normalizeTaskYmd(task.date))),
+    [tasks],
   );
 
   const handlePrevMonth = () => {
@@ -105,7 +111,7 @@ export function StudyCalendar({
         {days.map((day, index) => {
           const dateStr = day ? `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` : null;
           const isSelected = selectedDate === dateStr;
-          const hasTask = day && taskDates.has(day);
+          const hasTask = Boolean(day && dateStr && taskYmdSet.has(dateStr));
 
           return (
             <button

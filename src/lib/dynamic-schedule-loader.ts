@@ -8,6 +8,7 @@ import { isDatabaseUnavailableError } from "@/lib/db-health";
 import { isBackendDisabled } from "@/lib/backend-toggle";
 import { dateToLocalYmd } from "@/lib/calendar-dates";
 import { getScheduledStudyTasks, type ScheduledStudyTask } from "@/lib/scheduled-quizzes";
+import { getDemoModeFromCookieStore, isPresetDemoContentEnabled } from "@/lib/app-demo-mode";
 
 export function scheduleTaskRowKey(t: ScheduledStudyTask): string {
   return `${t.date}:${t.type}:${t.id}`;
@@ -118,7 +119,9 @@ export async function loadDynamicScheduleTasks(): Promise<ScheduledStudyTask[]> 
 }
 
 export async function getMergedScheduleTasksForViewer(): Promise<ScheduledStudyTask[]> {
-  const staticTasks = getScheduledStudyTasks();
+  const cookieStore = await cookies();
+  const presets = isPresetDemoContentEnabled(getDemoModeFromCookieStore(cookieStore));
+  const staticTasks = getScheduledStudyTasks(new Date(), { includePresetQuizzes: presets });
   const dynamic = await loadDynamicScheduleTasks();
   return mergeScheduleTasks(staticTasks, dynamic);
 }

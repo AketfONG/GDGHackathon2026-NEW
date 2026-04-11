@@ -6,7 +6,8 @@ import { cookies } from "next/headers";
 import { connectToDatabase } from "@/lib/mongodb";
 import { QuizModel } from "@/models/Quiz";
 import type { UiQuiz } from "@/lib/ui-quizzes";
-import { getDefaultScheduledUiQuiz } from "@/lib/default-scheduled-quizzes";
+import { getDefaultScheduledUiQuiz, isDefaultScheduledQuizId } from "@/lib/default-scheduled-quizzes";
+import { getDemoModeFromCookieStore, isPresetDemoContentEnabled } from "@/lib/app-demo-mode";
 import { getServerUser } from "@/lib/auth/server-user";
 import { QUIZ_CLIENT_SCOPE_COOKIE } from "@/lib/quiz-client-scope";
 import { viewerCanAccessQuiz, isSharedDemoUser } from "@/lib/quiz-access";
@@ -17,7 +18,13 @@ export const dynamic = "force-dynamic";
 export default async function QuizTakePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  const defaultQuiz = getDefaultScheduledUiQuiz(id);
+  const cookieStore = await cookies();
+  const demo = isPresetDemoContentEnabled(getDemoModeFromCookieStore(cookieStore));
+  if (!demo && isDefaultScheduledQuizId(id)) {
+    notFound();
+  }
+
+  const defaultQuiz = demo ? getDefaultScheduledUiQuiz(id) : null;
   if (defaultQuiz) {
     return (
       <div className="min-h-screen bg-slate-50">
@@ -90,7 +97,6 @@ export default async function QuizTakePage({ params }: { params: Promise<{ id: s
     notFound();
   }
 
-  const cookieStore = await cookies();
   const scope = cookieStore.get(QUIZ_CLIENT_SCOPE_COOKIE)?.value ?? null;
   const user = await getServerUser();
   const viewerIsDemo = isSharedDemoUser(

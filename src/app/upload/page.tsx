@@ -4,7 +4,9 @@ import Link from "next/link";
 import { TopNav } from "@/components/top-nav";
 import { useEffect, useState } from "react";
 import { useUserSettings } from "@/hooks/use-user-settings";
+import { useAppDemoMode } from "@/hooks/use-app-demo-mode";
 
+/** Demo-only preset courses (not shown in live mode). */
 const MOCK_COURSES = [
   { id: "econ2103", name: "ECON2103" },
   { id: "comp3511", name: "COMP3511" },
@@ -14,28 +16,36 @@ const MOCK_COURSES = [
   { id: "temg3950", name: "TEMG3950" },
 ];
 
-const MOCK_WEEKS = [
-  { id: "week1", name: "Week 1" },
-  { id: "week2", name: "Week 2" },
-  { id: "week3", name: "Week 3" },
-  { id: "week4", name: "Week 4" },
-  { id: "week5", name: "Week 5" },
-];
+type UploadedFilesMap = Record<string, Record<string, string[]>>;
 
-function buildEmptyUploads(): Record<string, Record<string, string[]>> {
-  const out: Record<string, Record<string, string[]>> = {};
+const DEMO_WEEK_KEYS = ["1", "2", "3", "4", "5"] as const;
+
+function buildDemoEmptyUploads(): UploadedFilesMap {
+  const out: UploadedFilesMap = {};
   for (const c of MOCK_COURSES) {
     out[c.id] = {};
-    for (const w of MOCK_WEEKS) {
-      out[c.id][w.id] = [];
+    for (const w of DEMO_WEEK_KEYS) {
+      out[c.id][w] = [];
     }
   }
   return out;
 }
 
-function weekIdToNumber(weekId: string): string {
-  const m = /^week(\d+)$/i.exec(weekId);
-  return m ? m[1] : weekId.replace(/\D/g, "") || "1";
+function slugCourseName(name: string): string {
+  const t = name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+  return t.length > 0 ? t : "course";
+}
+
+function normalizeWeekKeyFromSettings(raw: string | null): number | null {
+  if (!raw) return null;
+  const m = /^week(\d+)$/i.exec(raw);
+  if (m) return parseInt(m[1], 10);
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 1 ? n : null;
 }
 
 const getFileIcon = (filename: string) => {
@@ -47,43 +57,100 @@ const getFileIcon = (filename: string) => {
   return "📎";
 };
 
+function courseDisplayName(
+  courseKey: string,
+  isDemo: boolean,
+  liveLabels: Record<string, string>,
+): string {
+  if (isDemo) {
+    const c = MOCK_COURSES.find((x) => x.id === courseKey);
+    if (c) return c.name;
+  }
+  return liveLabels[courseKey] ?? courseKey.replace(/-/g, " ");
+}
+
 export default function UploadMaterialsPage() {
   const [settings, patchSettings] = useUserSettings();
-  const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
-  const [selectedWeek, setSelectedWeek] = useState<string | null>(null);
-  const [uploadedFiles, setUploadedFiles] = useState(buildEmptyUploads);
+  const { isDemo, loaded: modeLoaded } = useAppDemoMode();
+
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [liveCourseName, setLiveCourseName] = useState("");
+  const [liveCourseLabels, setLiveCourseLabels] = useState<Record<string, string>>({});
+  const [weekNum, setWeekNum] = useState<number | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFilesMap>({});
   const [isDragging, setIsDragging] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{ type: "ok" | "err"; text: string } | null>(
-    null
+    null,
   );
 
-  const selectedCourseData = MOCK_COURSES.find((c) => c.id === selectedCourse);
-  const selectedWeekData = MOCK_WEEKS.find((w) => w.id === selectedWeek);
+  useEffect(() => {
+    if (!modeLoaded) return;
+    if (isDemo) {
+      setUploadedFiles(buildDemoEmptyUploads());
+      setSelectedCourseId(null);
+      setLiveCourseName("");
+      setWeekNum(null);
+    } else {
+      setUploadedFiles({});
+      setSelectedCourseId(null);
+      setLiveCourseName("");
+      setLiveCourseLabels({});
+      setWeekNum(null);
+    }
+  }, [modeLoaded, isDemo]);
 
   useEffect(() => {
-    if (!settings.rememberUploadSelections) return;
-    const c = settings.uploadLastCourseId;
-    const w = settings.uploadLastWeekId;
-    if (c && MOCK_COURSES.some((x) => x.id === c)) {
-      setSelectedCourse(c);
+    if (!settings.rememberUploadSelections || !modeLoaded) return;
+
+    if (isDemo) {
+      const c = settings.uploadLastCourseId;
+      if (c && MOCK_COURSES.some((x) => x.id === c)) {
+        setSelectedCourseId(c);
+      }
+    } else {
+      const slug = settings.uploadLastCourseId;
+      if (slug && slug.length > 0) {
+        setLiveCourseName(slug.replace(/-/g, " "));
+      }
     }
-    if (w && MOCK_WEEKS.some((x) => x.id === w)) {
-      setSelectedWeek(w);
-    }
-  }, [settings.rememberUploadSelections, settings.uploadLastCourseId, settings.uploadLastWeekId]);
+
+    const wk = normalizeWeekKeyFromSettings(settings.uploadLastWeekId);
+    if (wk !== null) setWeekNum(wk);
+  }, [settings.rememberUploadSelections, settings.uploadLastCourseId, settings.uploadLastWeekId, isDemo, modeLoaded]);
+
+  const liveCourseKey = slugCourseName(liveCourseName);
+  const hasLiveCourse = !isDemo && liveCourseName.trim().length > 0;
+  const hasDemoCourse = isDemo && selectedCourseId !== null;
+  const selectedDemoCourse = MOCK_COURSES.find((c) => c.id === selectedCourseId);
+  const courseKey = isDemo ? selectedCourseId! : liveCourseKey;
+  const weekKey = weekNum !== null && weekNum >= 1 ? String(weekNum) : null;
+  const canUpload = (hasDemoCourse || hasLiveCourse) && weekKey !== null;
+
+  const resolveCourseNameForApi = (): string | null => {
+    if (isDemo && selectedDemoCourse) return selectedDemoCourse.name;
+    if (!isDemo && hasLiveCourse) return liveCourseName.trim();
+    return null;
+  };
 
   async function runColdGenerationForFiles(files: FileList | File[]) {
     const list = Array.from(files);
     if (!list.length) return;
 
-    if (!selectedCourse || !selectedWeek || !selectedCourseData) {
-      alert("Please select a course and week first");
+    const courseName = resolveCourseNameForApi();
+    if (!courseName || !weekKey) {
+      alert(
+        isDemo
+          ? "Please select a course and enter a week number (1–52)."
+          : "Please enter a course name and a week number (1–52).",
+      );
       return;
     }
 
-    const weekNum = weekIdToNumber(selectedWeek);
-    const courseName = selectedCourseData.name;
+    const ck = courseKey;
+    if (!isDemo) {
+      setLiveCourseLabels((prev) => ({ ...prev, [ck]: liveCourseName.trim() }));
+    }
 
     setGenerating(true);
     setStatusMessage(null);
@@ -93,7 +160,7 @@ export default function UploadMaterialsPage() {
       formData.append("file", file);
     }
     formData.append("course", courseName);
-    formData.append("week", weekNum);
+    formData.append("week", weekKey);
 
     try {
       const res = await fetch("/api/quizzes/upload-generate-cold", {
@@ -113,13 +180,27 @@ export default function UploadMaterialsPage() {
         });
         return;
       }
-      setUploadedFiles((prev) => ({
-        ...prev,
-        [selectedCourse]: {
-          ...prev[selectedCourse],
-          [selectedWeek]: [...(prev[selectedCourse][selectedWeek] || []), ...list.map((f) => f.name)],
-        },
-      }));
+
+      setUploadedFiles((prev) => {
+        const next = { ...prev };
+        if (!next[ck]) next[ck] = {};
+        if (!next[ck][weekKey]) next[ck][weekKey] = [];
+        next[ck] = {
+          ...next[ck],
+          [weekKey]: [...(next[ck][weekKey] ?? []), ...list.map((f) => f.name)],
+        };
+        return next;
+      });
+
+      if (settings.rememberUploadSelections) {
+        if (isDemo && selectedCourseId) {
+          patchSettings({ uploadLastCourseId: selectedCourseId, uploadLastWeekId: weekKey });
+        }
+        if (!isDemo) {
+          patchSettings({ uploadLastCourseId: ck, uploadLastWeekId: weekKey });
+        }
+      }
+
       const n = data.quiz?.questionCount ?? 0;
       const k = list.length;
       setStatusMessage({
@@ -165,12 +246,12 @@ export default function UploadMaterialsPage() {
     e.stopPropagation();
     setIsDragging(false);
 
-    if (!selectedCourse) {
-      alert("Please select a course first");
-      return;
-    }
-    if (!selectedWeek) {
-      alert("Please select a week first");
+    if (!canUpload || !weekKey) {
+      alert(
+        isDemo
+          ? "Select a course and enter a valid week number first."
+          : "Enter a course name and a valid week number first.",
+      );
       return;
     }
 
@@ -181,14 +262,27 @@ export default function UploadMaterialsPage() {
   };
 
   const removeFile = (course: string, week: string, fileIndex: number) => {
-    setUploadedFiles((prev) => ({
-      ...prev,
-      [course]: {
-        ...prev[course],
-        [week]: prev[course][week].filter((_, idx) => idx !== fileIndex),
-      },
-    }));
+    setUploadedFiles((prev) => {
+      const copy = { ...prev };
+      const wk = { ...(copy[course] ?? {}) };
+      const arr = [...(wk[week] ?? [])];
+      arr.splice(fileIndex, 1);
+      wk[week] = arr;
+      copy[course] = wk;
+      return copy;
+    });
   };
+
+  const uploadHeading =
+    isDemo && selectedDemoCourse && weekKey
+      ? `${selectedDemoCourse.name} · Week ${weekKey}`
+      : !isDemo && hasLiveCourse && weekKey
+        ? `${liveCourseName.trim()} · Week ${weekKey}`
+        : "";
+
+  const courseKeysWithFiles = Object.keys(uploadedFiles).filter((ck) =>
+    Object.values(uploadedFiles[ck] ?? {}).some((files) => files.length > 0),
+  );
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -202,6 +296,12 @@ export default function UploadMaterialsPage() {
           <p className="mt-2 text-slate-600">
             Upload a file for the selected course and week. A <strong>cold test</strong> is generated
             automatically from your file(s).
+            {!isDemo ? (
+              <>
+                {" "}
+                <strong>Live mode</strong> has no preset course list — enter your course name below.
+              </>
+            ) : null}
           </p>
         </section>
 
@@ -225,62 +325,84 @@ export default function UploadMaterialsPage() {
           </div>
         ) : null}
 
+        {/* Step 1: Course */}
         <div className="mb-8 rounded-lg border border-slate-200 bg-white p-6">
-          <h2 className="mb-4 text-base font-semibold text-slate-900">Step 1: Select Your Course</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {MOCK_COURSES.map((course) => (
-              <button
-                key={course.id}
-                type="button"
-                onClick={() => {
-                  setSelectedCourse(course.id);
-                  if (settings.rememberUploadSelections) {
-                    patchSettings({ uploadLastCourseId: course.id });
-                  }
-                }}
-                className={`rounded-lg border-2 p-4 text-left transition-all ${
-                  selectedCourse === course.id
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200 bg-white hover:border-slate-300"
-                }`}
-              >
-                <p className="font-semibold text-slate-900">{course.name}</p>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {selectedCourse && (
-          <div className="mb-8 rounded-lg border border-slate-200 bg-white p-6">
-            <h2 className="mb-4 text-base font-semibold text-slate-900">Step 2: Select Your Week</h2>
-            <div className="grid gap-3">
-              {MOCK_WEEKS.map((week) => (
+          <h2 className="mb-4 text-base font-semibold text-slate-900">Step 1: Course</h2>
+          {isDemo ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {MOCK_COURSES.map((course) => (
                 <button
-                  key={week.id}
+                  key={course.id}
                   type="button"
                   onClick={() => {
-                    setSelectedWeek(week.id);
+                    setSelectedCourseId(course.id);
                     if (settings.rememberUploadSelections) {
-                      patchSettings({ uploadLastWeekId: week.id });
+                      patchSettings({ uploadLastCourseId: course.id });
                     }
                   }}
                   className={`rounded-lg border-2 p-4 text-left transition-all ${
-                    selectedWeek === week.id
-                      ? "border-green-500 bg-green-50"
+                    selectedCourseId === course.id
+                      ? "border-blue-500 bg-blue-50"
                       : "border-slate-200 bg-white hover:border-slate-300"
                   }`}
                 >
-                  <p className="font-semibold text-slate-900">{week.name}</p>
+                  <p className="font-semibold text-slate-900">{course.name}</p>
                 </button>
               ))}
+            </div>
+          ) : (
+            <div className="max-w-md">
+              <label htmlFor="live-course" className="mb-1 block text-sm font-medium text-slate-700">
+                Course name
+              </label>
+              <input
+                id="live-course"
+                type="text"
+                value={liveCourseName}
+                onChange={(e) => setLiveCourseName(e.target.value)}
+                placeholder="e.g. COMP 3511 — Operating Systems"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                autoComplete="off"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Step 2: Week number */}
+        {(hasDemoCourse || hasLiveCourse) && (
+          <div className="mb-8 rounded-lg border border-slate-200 bg-white p-6">
+            <h2 className="mb-4 text-base font-semibold text-slate-900">Step 2: Week number</h2>
+            <div className="max-w-xs">
+              <label htmlFor="week-num" className="mb-1 block text-sm font-medium text-slate-700">
+                Week
+              </label>
+              <input
+                id="week-num"
+                type="number"
+                min={1}
+                max={52}
+                step={1}
+                value={weekNum === null ? "" : weekNum}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "") {
+                    setWeekNum(null);
+                    return;
+                  }
+                  const n = parseInt(v, 10);
+                  if (!Number.isNaN(n)) setWeekNum(n);
+                }}
+                placeholder="e.g. 3"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 shadow-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+              />
             </div>
           </div>
         )}
 
-        {selectedCourse && selectedWeek ? (
+        {canUpload ? (
           <div className="mb-8">
             <h2 className="mb-4 text-base font-semibold text-slate-900">
-              Step 3: Upload Materials for {selectedCourseData?.name} - {selectedWeekData?.name}
+              Step 3: Upload materials · {uploadHeading}
             </h2>
             <div
               onDragOver={handleDragOver}
@@ -336,56 +458,62 @@ export default function UploadMaterialsPage() {
         ) : (
           <div className="mb-8 rounded-lg border border-amber-200 bg-amber-50 p-6">
             <p className="text-center text-amber-900">
-              👆 Please select a course and week to upload materials
+              {isDemo
+                ? "👆 Select a course and enter a week number (1–52) to upload."
+                : "👆 Enter a course name and a week number (1–52) to upload."}
             </p>
           </div>
         )}
 
         <section className="rounded-lg border border-slate-200 bg-white p-6">
-          <h2 className="mb-4 text-base font-semibold text-slate-900">Step 4: Your Uploaded Files</h2>
-          <div className="space-y-8">
-            {MOCK_COURSES.map((course) => (
-              <div key={course.id}>
-                <h3 className="mb-4 text-base font-semibold text-slate-900">{course.name}</h3>
-                <div className="space-y-4">
-                  {MOCK_WEEKS.map((week) => {
-                    const weekFiles = uploadedFiles[course.id]?.[week.id] ?? [];
-
-                    return (
-                      <div key={week.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                        <p className="mb-3 text-sm font-semibold text-slate-900">{week.name}</p>
-                        {weekFiles.length > 0 ? (
-                          <div className="grid gap-2 sm:grid-cols-2">
-                            {weekFiles.map((file, idx) => (
-                              <div
-                                key={idx}
-                                className="flex items-center justify-between rounded bg-white p-2 hover:bg-slate-100"
-                              >
-                                <div className="flex min-w-0 items-center gap-2">
-                                  <span className="text-lg">{getFileIcon(file)}</span>
-                                  <p className="truncate text-sm font-medium text-slate-900">{file}</p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removeFile(course.id, week.id, idx)}
-                                  className="shrink-0 rounded px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+          <h2 className="mb-4 text-base font-semibold text-slate-900">Step 4: Your uploaded files</h2>
+          {courseKeysWithFiles.length === 0 ? (
+            <p className="text-sm text-slate-500">No files yet.</p>
+          ) : (
+            <div className="space-y-8">
+              {courseKeysWithFiles.sort().map((ck) => (
+                <div key={ck}>
+                  <h3 className="mb-4 text-base font-semibold text-slate-900">
+                    {courseDisplayName(ck, isDemo, liveCourseLabels)}
+                  </h3>
+                  <div className="space-y-4">
+                    {Object.keys(uploadedFiles[ck] ?? {})
+                      .sort((a, b) => Number(a) - Number(b))
+                      .filter((wk) => (uploadedFiles[ck][wk]?.length ?? 0) > 0)
+                      .map((wk) => {
+                        const weekFiles = uploadedFiles[ck][wk] ?? [];
+                        return (
+                          <div key={wk} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                            <p className="mb-3 text-sm font-semibold text-slate-900">Week {wk}</p>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {weekFiles.map((file, idx) => (
+                                <div
+                                  key={`${file}-${idx}`}
+                                  className="flex items-center justify-between rounded bg-white p-2 hover:bg-slate-100"
                                 >
-                                  ✕
-                                </button>
-                              </div>
-                            ))}
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <span className="text-lg">{getFileIcon(file)}</span>
+                                    <p className="truncate text-sm font-medium text-slate-900">{file}</p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeFile(ck, wk, idx)}
+                                    className="shrink-0 rounded px-2 py-1 text-xs font-semibold text-red-600 hover:bg-red-50"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        ) : (
-                          <p className="text-xs text-slate-500">No files uploaded</p>
-                        )}
-                      </div>
-                    );
-                  })}
+                        );
+                      })}
+                  </div>
+                  <div className="mt-4 border-b border-slate-200" />
                 </div>
-                <div className="mt-4 border-b border-slate-200" />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="mt-8 rounded-lg border border-slate-200 bg-white p-6">

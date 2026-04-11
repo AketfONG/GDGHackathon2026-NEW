@@ -62,11 +62,21 @@ export const SCHEDULED_HOT_TO_COLD_QUIZ_ID: Record<string, string> = {
   "scheduled-mark3220-hot": "scheduled-mark3220-cold",
 };
 
+export type ScheduledQuizOptions = {
+  /** When false, returns [] (live mode — no preset course placeholders). Default true for backward compatibility. */
+  includePresetQuizzes?: boolean;
+};
+
 /**
  * Hard-coded upcoming quizzes (relative to referenceDate) for dashboard + schedule.
  * Links resolve to `/quizzes/[id]` with default MCQs (see `default-scheduled-quizzes.ts`).
  */
-export function getScheduledCourseQuizzes(referenceDate: Date = new Date()): CourseQuiz[] {
+export function getScheduledCourseQuizzes(
+  referenceDate: Date = new Date(),
+  options?: ScheduledQuizOptions,
+): CourseQuiz[] {
+  if (options?.includePresetQuizzes === false) return [];
+
   const d2 = addDaysLocalDateString(referenceDate, 2);
   const d5 = addDaysLocalDateString(referenceDate, 5);
   const dApr15 = april15DateString(referenceDate);
@@ -156,7 +166,12 @@ export function getScheduledCourseQuizzes(referenceDate: Date = new Date()): Cou
   ];
 }
 
-export function getScheduledStudyTasks(referenceDate: Date = new Date()): ScheduledStudyTask[] {
+export function getScheduledStudyTasks(
+  referenceDate: Date = new Date(),
+  options?: ScheduledQuizOptions,
+): ScheduledStudyTask[] {
+  if (options?.includePresetQuizzes === false) return [];
+
   const d2 = addDaysLocalDateString(referenceDate, 2);
   const d4 = addDaysLocalDateString(referenceDate, 4);
   const d5 = addDaysLocalDateString(referenceDate, 5);
@@ -261,9 +276,12 @@ export function getScheduledStudyTasks(referenceDate: Date = new Date()): Schedu
 /** Review-quiz topics due on or after `referenceDate`’s calendar day (for “unclear concepts” / focus areas). */
 export function getUpcomingReviewQuizConcepts(
   referenceDate: Date = new Date(),
+  options?: ScheduledQuizOptions,
 ): { quizId: string; course: string; concept: string; dueDate: string }[] {
+  if (options?.includePresetQuizzes === false) return [];
+
   const today = localDateString(referenceDate);
-  return getScheduledCourseQuizzes(referenceDate)
+  return getScheduledCourseQuizzes(referenceDate, options)
     .filter((q) => q.testType === "review" && q.dueDate != null && q.dueDate >= today)
     .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? "") || a.course.localeCompare(b.course))
     .filter(

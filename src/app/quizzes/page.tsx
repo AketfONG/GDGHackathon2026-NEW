@@ -1,9 +1,11 @@
+import { cookies } from "next/headers";
 import { TopNav } from "@/components/top-nav";
 import { QuizList, type CourseQuiz } from "@/components/quiz-list";
 import { DbOfflineNotice } from "@/components/db-offline-notice";
 import { isBackendDisabled } from "@/lib/backend-toggle";
 import { getScheduledCourseQuizzes } from "@/lib/scheduled-quizzes";
 import { loadUploadedColdQuizzes } from "@/lib/uploaded-cold-quizzes-loader";
+import { getDemoModeFromCookieStore, isPresetDemoContentEnabled } from "@/lib/app-demo-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +21,10 @@ export default async function QuizzesPage() {
       dbOffline = true;
       dbOfflineDetail = loadDetail;
     } else {
+      const cookieStore = await cookies();
+      const presets = isPresetDemoContentEnabled(getDemoModeFromCookieStore(cookieStore));
       const uploaded = bundles.map((b) => b.courseQuiz);
-      const scheduled = getScheduledCourseQuizzes();
+      const scheduled = presets ? getScheduledCourseQuizzes() : [];
       coldQuizzes = [...scheduled, ...uploaded];
     }
   }
