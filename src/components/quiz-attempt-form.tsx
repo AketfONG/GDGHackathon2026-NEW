@@ -57,7 +57,7 @@ function prepareQuestionList(
   return qs;
 }
 
-export function QuizAttemptForm({ quiz, isHotFollowup = false }: { quiz: UiQuiz; isHotFollowup?: boolean }) {
+export function QuizAttemptForm({ quiz, isHotFollowup = false, onSubmit }: { quiz: UiQuiz; isHotFollowup?: boolean; onSubmit?: () => void }) {
   const router = useRouter();
   const [settings] = useUserSettings();
   const startedAtRef = useRef<number>(Date.now());
@@ -119,6 +119,7 @@ export function QuizAttemptForm({ quiz, isHotFollowup = false }: { quiz: UiQuiz;
         setScoreSummary({ correct, total, percent });
         setPhase("results");
         router.refresh();
+        onSubmit?.();
       } finally {
         setIsSubmitting(false);
       }
@@ -137,9 +138,16 @@ export function QuizAttemptForm({ quiz, isHotFollowup = false }: { quiz: UiQuiz;
 
     try {
       const headers = await getAuthHeaders();
+      
+      // Detect review quiz mode from ID pattern (e.g., "scheduled-COMP3511-review")
+      const isReviewQuiz = /scheduled-.*-review$/i.test(String(quiz.id));
+      
       const endpoint = isHotFollowup
         ? `/api/quizzes/${encodeURIComponent(quiz.id)}/attempt?mode=hot-followup`
-        : `/api/quizzes/${encodeURIComponent(quiz.id)}/attempt`;
+        : isReviewQuiz
+          ? `/api/quizzes/${encodeURIComponent(quiz.id)}/attempt?mode=review`
+          : `/api/quizzes/${encodeURIComponent(quiz.id)}/attempt`;
+      
       const res = await fetch(endpoint, {
         method: "POST",
         credentials: "include",
@@ -178,6 +186,7 @@ export function QuizAttemptForm({ quiz, isHotFollowup = false }: { quiz: UiQuiz;
       }
       setPhase("results");
       router.refresh();
+      onSubmit?.();
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Network error");
     } finally {
